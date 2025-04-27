@@ -1,0 +1,213 @@
+/* 
+ * 全局样式
+ */
+
+// 全局样式变量
+$primary-color: #409EFF;
+$success-color: #67C23A;
+$warning-color: #E6A23C;
+$danger-color: #F56C6C;
+$info-color: #909399;
+$pink-color: #ff85a2;
+$pink-gradient: linear-gradient(45deg, #ff85a2, #ff9eb5);
+
+/* 重置样式 */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100%;
+  height: auto;
+  width: 100%;
+  font-family: var(--font-family);
+  font-size: 16px;
+  line-height: 1.5;
+  color: #333;
+  background-color: #f5f5f5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-y: auto !important; /* 确保垂直滚动可用 */
+  position: relative; /* 修复可能的定位问题 */
+}
+
+body {
+  overflow-x: hidden; /* 防止水平滚动 */
+}
+
+a {
+  text-decoration: none;
+  color: $pink-color;
+  transition: color 0.3s;
+  
+  &:hover {
+    color: darken($pink-color, 10%);
+  }
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+/* 自定义CSS变量 */
+:root {
+  --el-color-primary: #{$pink-color};
+  --el-color-primary-light-3: rgba(255, 133, 162, 0.8);
+  --el-color-primary-light-5: rgba(255, 133, 162, 0.6);
+  --el-color-primary-light-7: rgba(255, 133, 162, 0.4);
+  --el-color-primary-light-8: rgba(255, 133, 162, 0.3);
+  --el-color-primary-light-9: rgba(255, 133, 162, 0.1);
+  --el-color-primary-dark-2: #e56a87;
+  
+  /* 自定义全局CSS变量 */
+  --header-height: 60px;
+  --pink-color: #{$pink-color};
+  --pink-light: #ffb8c8;
+  --pink-dark: #e56a87;
+  --font-family: "Comic Sans MS", "Varela Round", Arial, sans-serif;
+  
+  /* Element Plus 其他颜色变量 */
+  --el-color-success: #{$success-color};
+  --el-color-warning: #{$warning-color};
+  --el-color-danger: #{$danger-color};
+  --el-color-info: #{$info-color};
+}
+
+/* 通用布局类 */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+.page-section {
+  margin-bottom: 40px;
+}
+
+/* 页面过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 错误信息 */
+.error-message {
+  color: var(--el-color-danger);
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+/* 标题样式 */
+.section-title {
+  font-size: 24px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  color: #333;
+  position: relative;
+  padding-left: 15px;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 70%;
+    background-color: var(--pink-color);
+    border-radius: 2px;
+  }
+}
+
+/* 颜色工具类 */
+.text-primary { color: $primary-color; }
+.text-success { color: $success-color; }
+.text-warning { color: $warning-color; }
+.text-danger { color: $danger-color; }
+.text-info { color: $info-color; }
+.text-pink { color: $pink-color; }
+
+.bg-primary { background-color: $primary-color; }
+.bg-success { background-color: $success-color; }
+.bg-warning { background-color: $warning-color; }
+.bg-danger { background-color: $danger-color; }
+.bg-info { background-color: $info-color; }
+.bg-pink { background-color: $pink-color; }
+.bg-pink-gradient { background-image: $pink-gradient; }
+
+/* 滚动条样式 - 隐藏滚动条但保留滚动功能 */
+::-webkit-scrollbar {
+  width: 0; /* 设置宽度为0以隐藏滚动条 */
+  background: transparent; /* 透明背景 */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 0;
+}
+
+/* Firefox 滚动条隐藏 */
+* {
+  scrollbar-width: none;
+}
+
+/* IE 滚动条隐藏 */
+* {
+  -ms-overflow-style: none;
+}
+
+/* 确保所有主要容器可以滚动 */
+.app-container,
+.test-container,
+.main-content {
+  overflow-y: auto;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+  .container {
+    width: 100%;
+  }
+}
+
+@media (max-width: 992px) {
+  html, body {
+    font-size: 15px;
+  }
+  
+  .section-title {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  html, body {
+    font-size: 14px;
+  }
+  
+  .section-title {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 576px) {
+  .section-title {
+    font-size: 18px;
+  }
+}
