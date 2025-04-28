@@ -58,11 +58,11 @@
           <!-- 操作按钮 -->
           <div class="address-actions">
             <div class="action-buttons">
-              <el-button type="text" @click="openAddressDialog(address)" class="edit-btn">
+              <el-button link @click="openAddressDialog(address)" class="edit-btn">
                 <i class="el-icon-edit"></i> 编辑
               </el-button>
               <el-divider direction="vertical" />
-              <el-button type="text" @click="deleteAddress(address)" class="delete-btn">
+              <el-button link @click="deleteAddress(address)" class="delete-btn">
                 <i class="el-icon-delete"></i> 删除
               </el-button>
             </div>

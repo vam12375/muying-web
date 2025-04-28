@@ -17,6 +17,8 @@ export const useOrderStore = defineStore('order', {
     orderList: [],
     // 当前订单详情
     currentOrder: null,
+    // 临时订单项（立即购买使用）
+    tempOrderItems: [],
     // 订单统计数据
     orderStats: {
       pendingPayment: 0,
@@ -74,10 +76,37 @@ export const useOrderStore = defineStore('order', {
       return state.orderStats.pendingPayment > 0 || 
              state.orderStats.pendingShipment > 0 || 
              state.orderStats.pendingReceive > 0;
+    },
+    
+    // 获取临时订单项总数
+    tempOrderItemsCount: (state) => {
+      return state.tempOrderItems.length;
+    },
+    
+    // 计算临时订单总价
+    tempOrderTotalPrice: (state) => {
+      return state.tempOrderItems.reduce((total, item) => {
+        return total + (item.price * item.quantity);
+      }, 0);
     }
   },
 
   actions: {
+    // 设置临时订单项（用于立即购买功能）
+    setTempOrderItems(items) {
+      this.tempOrderItems = Array.isArray(items) ? items : [items];
+    },
+    
+    // 清空临时订单项
+    clearTempOrderItems() {
+      this.tempOrderItems = [];
+    },
+    
+    // 获取临时订单项
+    getTempOrderItems() {
+      return this.tempOrderItems;
+    },
+    
     // 获取订单列表
     async fetchOrderList(options = {}) {
       const params = {

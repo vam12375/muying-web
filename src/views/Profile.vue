@@ -198,7 +198,7 @@
                         </div>
                         <div>
                           <div class="font-medium">会员等级</div>
-                          <div class="text-sm text-gray-500">{{ getUserLevel(userInfo.level) }}</div>
+                          <div class="text-sm text-gray-500">{{ userInfo.userLevel || getUserLevel(userInfo.level) }}</div>
                         </div>
                       </div>
                       <el-tag type="warning" effect="plain">{{ userInfo.level }} 级</el-tag>

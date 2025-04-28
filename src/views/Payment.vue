@@ -94,8 +94,45 @@
               </div>
             </div>
             
+            <!-- 钱包支付 -->
+            <div v-if="selectedPaymentMethod === 'wallet' && showPaymentForm" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+              <div class="p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                  <i class="el-icon-money mr-2 text-gray-500"></i>
+                  钱包支付
+                </h2>
+                
+                <div class="wallet-payment-form">
+                  <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg mb-4">
+                    <div class="text-gray-700">账户余额</div>
+                    <div class="text-xl font-bold text-primary-500">¥{{ formatPrice(walletBalance) }}</div>
+                  </div>
+                  
+                  <div v-if="walletBalance >= orderAmount" class="text-center">
+                    <p class="mb-4 text-gray-600">本次支付将从您的钱包余额中扣除 <span class="text-primary-500 font-bold">¥{{ formatPrice(orderAmount) }}</span></p>
+                    <el-button 
+                      type="primary" 
+                      size="large" 
+                      class="w-60"
+                      @click="simulateWalletPayment"
+                    >
+                      确认支付
+                    </el-button>
+                  </div>
+                  
+                  <div v-else class="text-center">
+                    <p class="mb-4 text-red-500">您的钱包余额不足，请先充值或选择其他支付方式</p>
+                    <div class="flex justify-center gap-4">
+                      <el-button type="primary">去充值</el-button>
+                      <el-button @click="selectedPaymentMethod = 'alipay'">选择其他支付方式</el-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <!-- 支付二维码 -->
-            <div v-if="showQRCode" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+            <div v-if="(selectedPaymentMethod === 'alipay' || selectedPaymentMethod === 'wechat') && showQRCode" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
               <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
                   <i class="el-icon-mobile mr-2 text-gray-500"></i>
@@ -104,7 +141,10 @@
                 
                 <div class="flex flex-col items-center justify-center">
                   <div class="qrcode-wrapper p-4 border rounded-lg bg-white mb-4 relative">
-                    <img :src="getQRCodeForPayment()" alt="支付二维码" class="w-60 h-60">
+                    <div v-if="qrcodeLoading" class="flex justify-center items-center h-60 w-60">
+                      <el-skeleton-item variant="image" style="width: 240px; height: 240px" />
+                    </div>
+                    <img v-else :src="getQRCodeForPayment()" alt="支付二维码" class="w-60 h-60">
                     
                     <transition name="fade">
                       <div v-if="paymentStatus === 'success'" class="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
@@ -119,6 +159,10 @@
                   </div>
                   
                   <p class="text-center text-gray-500 mb-4">请使用{{ getSelectedPaymentMethodName() }}扫描二维码完成支付</p>
+                  
+                  <div class="text-center text-xs bg-primary-50 text-primary-700 p-2 rounded-lg mb-4 max-w-sm">
+                    <p><strong>沙箱环境提示：</strong> 这是测试环境，请使用{{ selectedPaymentMethod === 'alipay' ? '支付宝' : '微信' }}沙箱app扫码，无需真实支付</p>
+                  </div>
                   
                   <div class="countdown text-center">
                     <div class="text-gray-500 mb-2">支付二维码有效期</div>
@@ -206,12 +250,12 @@
                 
                 <div class="mt-4 text-center">
                   <el-button 
-                    type="text" 
+                    link 
                     class="text-sm text-gray-500"
-                    @click="cancelPayment"
+                    @click="goBack"
                   >
-                    取消支付
-                    <i class="el-icon-close ml-1"></i>
+                    返回订单页面
+                    <i class="el-icon-back ml-1"></i>
                   </el-button>
                 </div>
               </div>
@@ -238,69 +282,71 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useOrderStore } from '@/stores/order';
 
 const router = useRouter();
 const route = useRoute();
+const orderStore = useOrderStore();
 
 // 订单ID
-const orderId = ref(route.query.order_id || '123456789');
+const orderId = ref(route.query.order_id || 'ORD123456789');
 
-// 订单信息
-const orderAmount = ref(149.8);
-const orderTime = ref('2023-12-01 12:30:45');
+// 订单金额
+const orderAmount = ref(parseFloat(route.query.amount) || 149.70);
+
+// 创建时间
+const orderTime = ref(new Date().toLocaleString());
+
+// 收货人信息
 const receiverInfo = ref('张三 (13800138000)');
 
-// 支付方式列表
+// 支付相关状态
+const paymentStatus = ref('pending'); // pending, success, failed
+const selectedPaymentMethod = ref('alipay'); // alipay, wechat, wallet
 const paymentMethods = ref([
-  {
-    id: 1,
-    name: '微信支付',
-    description: '使用微信扫码支付',
-    icon: 'el-icon-chat-dot-round',
-    color: '#09BB07'
+  { 
+    id: 'alipay', 
+    name: '支付宝支付', 
+    icon: 'el-icon-wallet', 
+    color: '#1677FF',
+    description: '使用支付宝扫码支付(沙箱环境)' 
   },
-  {
-    id: 2,
-    name: '支付宝',
-    description: '使用支付宝扫码支付',
-    icon: 'el-icon-wallet',
-    color: '#1677FF'
+  { 
+    id: 'wechat', 
+    name: '微信支付', 
+    icon: 'el-icon-chat-dot-round', 
+    color: '#07C160',
+    description: '使用微信扫码支付(沙箱环境)' 
   },
-  {
-    id: 3,
-    name: '银联支付',
-    description: '使用银联卡支付',
-    icon: 'el-icon-credit-card',
-    color: '#E8242C'
-  },
-  {
-    id: 4,
-    name: '货到付款',
-    description: '收到商品后现金支付',
-    icon: 'el-icon-box',
-    color: '#FF9900'
+  { 
+    id: 'wallet', 
+    name: '钱包支付', 
+    icon: 'el-icon-money', 
+    color: '#FF9900',
+    description: '使用账户余额支付' 
   }
 ]);
 
-// 选中的支付方式
-const selectedPaymentMethod = ref(1);
+// 钱包余额
+const walletBalance = ref(500.00);
 
-// 支付状态：pending(待支付)，success(支付成功)，failed(支付失败)
-const paymentStatus = ref('pending');
-
-// 是否显示支付二维码
+// 二维码相关
 const showQRCode = ref(false);
-
-// 支付倒计时（15分钟）
-const countdownSeconds = ref(15 * 60);
+const qrcodeLoading = ref(false);
+const countdownTime = ref(900); // 15分钟倒计时（秒）
 let countdownTimer = null;
+
+// 钱包支付表单
+const showPaymentForm = ref(false);
 
 // 选择支付方式
 const selectPaymentMethod = (methodId) => {
   selectedPaymentMethod.value = methodId;
+  showQRCode.value = false;
+  showPaymentForm.value = false;
 };
 
 // 获取选中的支付方式名称
@@ -327,11 +373,11 @@ const getPaymentStatusText = () => {
 const getPaymentStatusDescription = () => {
   switch (paymentStatus.value) {
     case 'pending':
-      return showQRCode.value ? '请扫描二维码完成支付' : '请选择支付方式';
+      return '请选择支付方式完成支付';
     case 'success':
-      return '您的订单已支付成功，感谢购买！';
+      return '您的订单已支付成功，感谢您的购买';
     case 'failed':
-      return '支付遇到问题，请重试或选择其他支付方式';
+      return '支付失败，请重新尝试或选择其他支付方式';
     default:
       return '';
   }
@@ -339,99 +385,89 @@ const getPaymentStatusDescription = () => {
 
 // 格式化价格
 const formatPrice = (price) => {
-  return price.toFixed(2);
+  return parseFloat(price).toFixed(2);
 };
 
-// 根据选择的支付方式获取对应的二维码
-const getQRCodeForPayment = () => {
-  // 在实际应用中，这里应该根据选择的支付方式和订单信息从后端获取真实的支付二维码
-  // 这里使用假图片URL作为示例
-  switch (selectedPaymentMethod.value) {
-    case 1: // 微信支付
-      return 'https://example.com/wechat_qrcode.png';
-    case 2: // 支付宝
-      return 'https://example.com/alipay_qrcode.png';
-    default:
-      return 'https://example.com/payment_qrcode.png';
-  }
-};
-
-// 格式化倒计时显示
+// 格式化倒计时
 const formatCountdown = () => {
-  const minutes = Math.floor(countdownSeconds.value / 60);
-  const seconds = countdownSeconds.value % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  const minutes = Math.floor(countdownTime.value / 60);
+  const seconds = countdownTime.value % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+// 获取支付二维码
+const getQRCodeForPayment = () => {
+  // 根据支付方式返回不同的二维码
+  if (selectedPaymentMethod.value === 'alipay') {
+    return '/images/alipay_sandbox_qrcode.png';
+  } else if (selectedPaymentMethod.value === 'wechat') {
+    return '/images/wechat_sandbox_qrcode.png';
+  }
+  return '';
 };
 
 // 开始倒计时
 const startCountdown = () => {
   countdownTimer = setInterval(() => {
-    if (countdownSeconds.value > 0) {
-      countdownSeconds.value--;
+    if (countdownTime.value > 0) {
+      countdownTime.value -= 1;
     } else {
+      // 二维码过期
       clearInterval(countdownTimer);
-      // 支付超时
-      if (paymentStatus.value === 'pending') {
-        paymentStatus.value = 'failed';
-        ElMessage.error('支付超时，请重新支付');
-      }
+      // 这里可以处理二维码过期逻辑
+      ElMessage.warning('支付二维码已过期，请重新获取');
+      showQRCode.value = false;
     }
   }, 1000);
 };
 
-// 显示支付二维码
-const showPaymentQRCode = () => {
-  showQRCode.value = true;
-  startCountdown();
-};
-
-// 模拟支付流程
-const simulatePayment = () => {
-  if (showQRCode.value) {
-    // 如果已经显示二维码，则模拟支付成功
-    ElMessage.success('支付处理中...');
-    
-    setTimeout(() => {
-      paymentStatus.value = 'success';
-      clearInterval(countdownTimer);
-      
-      setTimeout(() => {
-        ElMessageBox.confirm('支付成功，是否查看订单详情？', '支付完成', {
-          confirmButtonText: '查看订单',
-          cancelButtonText: '继续购物',
-          type: 'success'
-        }).then(() => {
-          goToOrderDetail();
-        }).catch(() => {
-          router.push('/');
-        });
-      }, 1500);
-    }, 2000);
+// 模拟支付
+const simulatePayment = async () => {
+  if (selectedPaymentMethod.value === 'wallet') {
+    // 钱包支付
+    showPaymentForm.value = true;
   } else {
-    // 如果还没显示二维码，则显示二维码
-    showPaymentQRCode();
+    // 二维码支付（支付宝或微信）
+    qrcodeLoading.value = true;
+    showQRCode.value = true;
+    
+    // 模拟加载二维码
+    setTimeout(() => {
+      qrcodeLoading.value = false;
+      // 重新开始倒计时
+      countdownTime.value = 900;
+      startCountdown();
+    }, 1000);
   }
 };
 
-// 重试支付
-const retryPayment = () => {
-  paymentStatus.value = 'pending';
-  showQRCode.value = false;
-  countdownSeconds.value = 15 * 60;
-};
-
-// 取消支付
-const cancelPayment = () => {
-  ElMessageBox.confirm('确定要取消支付吗？未支付的订单将在24小时后自动关闭', '取消支付', {
-    confirmButtonText: '确定',
-    cancelButtonText: '继续支付',
-    type: 'warning'
-  }).then(() => {
-    ElMessage.info('您已取消支付');
-    router.push('/orders');
-  }).catch(() => {
-    // 用户选择继续支付，不做任何操作
-  });
+// 模拟钱包支付
+const simulateWalletPayment = async () => {
+  try {
+    // 模拟支付API调用
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 更新钱包余额
+    walletBalance.value -= orderAmount.value;
+    
+    // 更新支付状态
+    paymentStatus.value = 'success';
+    
+    // 提示用户
+    ElMessage.success('钱包支付成功！');
+    
+    // 更新订单状态
+    // 在实际应用中，这里应该调用 orderStore.payOrder() 来更新订单状态
+    
+    // 3秒后跳转到订单详情页
+    setTimeout(() => {
+      goToOrderDetail();
+    }, 3000);
+  } catch (error) {
+    console.error('钱包支付失败:', error);
+    paymentStatus.value = 'failed';
+    ElMessage.error('支付失败，请稍后重试');
+  }
 };
 
 // 跳转到订单详情
@@ -439,18 +475,17 @@ const goToOrderDetail = () => {
   router.push(`/orders?id=${orderId.value}`);
 };
 
-// 组件挂载时初始化
+// 生命周期
 onMounted(() => {
-  // 获取URL中的订单ID参数
+  // 如果URL中有order_id参数，获取该订单详情
   if (route.query.order_id) {
-    orderId.value = route.query.order_id;
+    // 在实际应用中，应该调用 orderStore.fetchOrderDetail(route.query.order_id)
+    // 这里使用模拟数据
   }
-  
-  // 在实际应用中，这里应该根据订单ID从后端获取订单详情
 });
 
-// 组件卸载前清理定时器
 onBeforeUnmount(() => {
+  // 清除倒计时
   if (countdownTimer) {
     clearInterval(countdownTimer);
   }

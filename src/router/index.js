@@ -168,7 +168,7 @@ const router = createRouter({
     {
       path: '/point',
       name: 'point',
-      component: () => import('../views/Point.vue'),
+      component: () => import('../views/Points.vue'),
       meta: {
         title: '我的积分',
         requiresAuth: true

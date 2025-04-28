@@ -88,4 +88,30 @@ export function addProductReview(productId, data) {
     method: 'post',
     data
   });
+}
+
+/**
+ * 切换商品收藏状态
+ * @param {number} productId - 商品ID 
+ * @returns {Promise}
+ */
+export function toggleProductFavorite(productId) {
+  return request({
+    url: `/products/${productId}/favorite`,
+    method: 'post'
+  });
+}
+
+/**
+ * 获取相关推荐商品
+ * @param {number} productId - 商品ID
+ * @param {Object} params - 查询参数，如 limit 
+ * @returns {Promise}
+ */
+export function getRelatedProducts(productId, params) {
+  return request({
+    url: `/products/${productId}/related`,
+    method: 'get',
+    params
+  });
 } 

@@ -173,7 +173,7 @@
                     <!-- 操作 -->
                     <div class="col-span-1 text-center">
                       <el-button 
-                        type="text" 
+                        link 
                         class="text-gray-500 hover:text-red-500 hover:scale-110 transition-transform"
                         @click="handleRemoveItem(item)"
                       >
@@ -227,7 +227,7 @@
                   
                   <div class="mt-4 text-center">
                     <el-button 
-                      type="text" 
+                      link 
                       class="text-sm text-gray-500"
                       @click="goToShop"
                     >
@@ -249,7 +249,7 @@
                 </el-checkbox>
                 
                 <el-button 
-                  type="text" 
+                  link 
                   class="text-gray-500 hover:text-red-500"
                   @click="handleBatchRemove"
                 >
@@ -257,7 +257,7 @@
                 </el-button>
                 
                 <el-button 
-                  type="text" 
+                  link 
                   class="text-gray-500 hover:text-primary-600"
                   @click="handleMoveToFavorites"
                 >
@@ -265,7 +265,7 @@
                 </el-button>
                 
                 <el-button 
-                  type="text" 
+                  link 
                   class="text-gray-500 hover:text-red-500 ml-auto"
                   @click="handleClearCart"
                 >

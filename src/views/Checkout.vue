@@ -198,6 +198,114 @@
               </div>
             </div>
             
+            <!-- 优惠券 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+              <div class="p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                  <i class="el-icon-discount mr-2 text-gray-500"></i>
+                  优惠券
+                </h2>
+                
+                <div v-if="availableCoupons.length === 0 && !couponsLoading" class="text-center py-4">
+                  <p class="text-gray-500">暂无可用优惠券</p>
+                  <el-button 
+                    type="primary" 
+                    link 
+                    class="mt-2"
+                    @click="showCouponCodeInput = true"
+                  >
+                    使用优惠码
+                  </el-button>
+                </div>
+                
+                <div v-else>
+                  <div class="coupon-list space-y-4">
+                    <div v-if="couponsLoading" class="py-4">
+                      <el-skeleton :rows="1" animated />
+                    </div>
+                    
+                    <template v-else>
+                      <div
+                        v-for="coupon in availableCoupons"
+                        :key="coupon.id"
+                        class="coupon-item border rounded-lg overflow-hidden cursor-pointer transition-all"
+                        :class="{'border-primary-500 bg-primary-50': selectedCouponId === coupon.id, 'border-gray-200 hover:border-primary-300': selectedCouponId !== coupon.id}"
+                        @click="selectCoupon(coupon.id)"
+                      >
+                        <div class="flex">
+                          <!-- 优惠券左侧金额 -->
+                          <div 
+                            class="coupon-amount bg-primary-500 text-white flex flex-col items-center justify-center p-4 w-24"
+                          >
+                            <div class="text-xl font-bold">{{ coupon.amount }}</div>
+                            <div class="text-xs">{{ getCouponTypeText(coupon.type) }}</div>
+                          </div>
+                          
+                          <!-- 优惠券信息 -->
+                          <div class="coupon-info flex-1 p-4 flex justify-between items-center">
+                            <div>
+                              <div class="font-medium text-sm">{{ coupon.name }}</div>
+                              <div class="text-xs text-gray-500 mt-1">{{ coupon.minAmount > 0 ? `满${coupon.minAmount}可用` : '无门槛' }}</div>
+                              <div class="text-xs text-gray-500">有效期至：{{ formatDate(coupon.endDate) }}</div>
+                            </div>
+                            
+                            <div>
+                              <el-radio v-model="selectedCouponId" :label="coupon.id"></el-radio>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="flex items-center mt-4">
+                        <el-button 
+                          type="primary" 
+                          link 
+                          @click="showCouponCodeInput = true"
+                        >
+                          使用优惠码
+                        </el-button>
+                        
+                        <div class="flex-1"></div>
+                        
+                        <el-button 
+                          type="info" 
+                          link 
+                          @click="goCouponCenter"
+                        >
+                          查看更多优惠券
+                        </el-button>
+                      </div>
+                    </template>
+                  </div>
+                  
+                  <!-- 优惠码输入框 -->
+                  <el-collapse-transition>
+                    <div v-if="showCouponCodeInput" class="mt-4 border-t border-gray-100 pt-4">
+                      <div class="flex space-x-2">
+                        <el-input
+                          v-model="couponCode"
+                          placeholder="请输入优惠码"
+                          class="flex-1"
+                          maxlength="20"
+                          show-word-limit
+                        ></el-input>
+                        <el-button
+                          type="primary"
+                          :loading="couponCodeLoading"
+                          @click="applyCouponCode"
+                        >
+                          使用
+                        </el-button>
+                        <el-button @click="showCouponCodeInput = false">
+                          取消
+                        </el-button>
+                      </div>
+                    </div>
+                  </el-collapse-transition>
+                </div>
+              </div>
+            </div>
+            
             <!-- 订单备注 -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
               <div class="p-6">
@@ -265,7 +373,7 @@
                 
                 <div class="mt-4 text-center">
                   <el-button 
-                    type="text" 
+                    link 
                     class="text-sm text-gray-500"
                     @click="goBack"
                   >
@@ -292,11 +400,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useCartStore } from '@/stores/cart';
+import { useOrderStore } from '@/stores/order';
+import { getAvailableCouponsForOrder, validateCoupon } from '@/api/coupon';
 
 const router = useRouter();
+const route = useRoute();
+const cartStore = useCartStore();
+const orderStore = useOrderStore();
+
+// 购买来源（'cart' 或 'buy_now'）
+const orderSource = ref('cart');
 
 // 地址数据
 const addresses = ref([
@@ -322,28 +439,8 @@ const addresses = ref([
   }
 ]);
 
-// 已选择的商品（模拟从购物车传过来的数据）
-const selectedItems = ref([
-  {
-    id: 1,
-    title: '婴儿纯棉连体衣秋冬装加厚保暖新生儿衣服',
-    image: '/images/product1.jpg',
-    specs: ['粉色', '73cm'],
-    price: 89.9,
-    originalPrice: 129.9,
-    quantity: 1,
-    subtotal: 89.9
-  },
-  {
-    id: 2,
-    title: '儿童宝宝牙刷婴幼儿软毛护齿训练牙刷',
-    image: '/images/product2.jpg',
-    specs: ['蓝色', '2-4岁'],
-    price: 29.9,
-    quantity: 2,
-    subtotal: 59.8
-  }
-]);
+// 已选择的商品
+const selectedItems = ref([]);
 
 // 配送方式选项
 const shippingOptions = ref([
@@ -372,20 +469,20 @@ const paymentOptions = ref([
   {
     id: 1,
     name: '微信支付',
-    description: '使用微信扫码支付',
+    description: '使用微信扫码支付(沙箱环境)',
     icon: 'el-icon-chat-dot-round'
   },
   {
     id: 2,
     name: '支付宝',
-    description: '使用支付宝扫码支付',
+    description: '使用支付宝扫码支付(沙箱环境)',
     icon: 'el-icon-wallet'
   },
   {
     id: 3,
-    name: '银行卡支付',
-    description: '使用储蓄卡或信用卡支付',
-    icon: 'el-icon-credit-card'
+    name: '钱包支付',
+    description: '使用账户余额支付',
+    icon: 'el-icon-money'
   }
 ]);
 
@@ -400,8 +497,31 @@ const orderNote = ref('');
 // 是否同意条款
 const agreeTerms = ref(true);
 
+// 优惠券相关
+const availableCoupons = ref([]);
+const selectedCouponId = ref('');
+const couponsLoading = ref(false);
+const showCouponCodeInput = ref(false);
+const couponCode = ref('');
+const couponCodeLoading = ref(false);
+
 // 优惠金额
-const discount = ref(10);
+const discount = computed(() => {
+  if (!selectedCouponId.value) return 0;
+  
+  const selectedCoupon = availableCoupons.value.find(c => c.id === selectedCouponId.value);
+  if (!selectedCoupon) return 0;
+  
+  if (selectedCoupon.type === 'fixed') {
+    // 固定金额
+    return Math.min(selectedCoupon.amount, totalAmount.value);
+  } else if (selectedCoupon.type === 'percentage') {
+    // 折扣比例
+    return totalAmount.value * (selectedCoupon.amount / 100);
+  }
+  
+  return 0;
+});
 
 // 商品总金额
 const totalAmount = computed(() => {
@@ -434,14 +554,130 @@ const selectPayment = (id) => {
   selectedPaymentId.value = id;
 };
 
+// 选择优惠券
+const selectCoupon = (id) => {
+  if (selectedCouponId.value === id) {
+    selectedCouponId.value = ''; // 再次点击取消选择
+  } else {
+    selectedCouponId.value = id;
+  }
+};
+
+// 获取优惠券类型文本
+const getCouponTypeText = (type) => {
+  return type === 'fixed' ? '元' : '折';
+};
+
+// 使用优惠码
+const applyCouponCode = async () => {
+  if (!couponCode.value) {
+    ElMessage.warning('请输入优惠码');
+    return;
+  }
+  
+  couponCodeLoading.value = true;
+  
+  try {
+    // 模拟API请求
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // 模拟成功响应
+    const couponData = {
+      id: 'code-' + Date.now(),
+      name: '新用户专享券',
+      type: 'fixed',
+      amount: 20,
+      minAmount: 100,
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    };
+    
+    availableCoupons.value.push(couponData);
+    selectedCouponId.value = couponData.id;
+    showCouponCodeInput.value = false;
+    couponCode.value = '';
+    
+    ElMessage.success('优惠码使用成功');
+  } catch (error) {
+    ElMessage.error('优惠码无效或已过期');
+  } finally {
+    couponCodeLoading.value = false;
+  }
+};
+
+// 前往优惠券中心
+const goCouponCenter = () => {
+  router.push('/coupons');
+};
+
+// 格式化日期
+const formatDate = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // 格式化价格
 const formatPrice = (price) => {
   return price.toFixed(2);
 };
 
-// 返回购物车
+// 返回购物车或商品详情
 const goBack = () => {
-  router.push('/cart');
+  if (orderSource.value === 'buy_now') {
+    // 如果是直接购买，返回商品详情页
+    router.go(-1); 
+  } else {
+    // 如果是购物车购买，返回购物车
+    router.push('/cart');
+  }
+};
+
+// 加载可用优惠券
+const loadAvailableCoupons = async () => {
+  couponsLoading.value = true;
+  
+  try {
+    // 模拟API请求
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // 模拟优惠券数据
+    availableCoupons.value = [
+      {
+        id: 'c1',
+        name: '满100减10券',
+        type: 'fixed',
+        amount: 10,
+        minAmount: 100,
+        endDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+      },
+      {
+        id: 'c2',
+        name: '满200减30券',
+        type: 'fixed',
+        amount: 30,
+        minAmount: 200,
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      },
+      {
+        id: 'c3',
+        name: '95折优惠券',
+        type: 'percentage',
+        amount: 5, // 表示95折
+        minAmount: 50,
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      }
+    ];
+    
+    // 过滤不满足使用条件的优惠券
+    availableCoupons.value = availableCoupons.value.filter(coupon => {
+      return totalAmount.value >= coupon.minAmount;
+    });
+  } catch (error) {
+    console.error('获取优惠券失败:', error);
+    ElMessage.error('获取优惠券失败，请稍后重试');
+  } finally {
+    couponsLoading.value = false;
+  }
 };
 
 // 提交订单
@@ -461,21 +697,130 @@ const submitOrder = () => {
     confirmButtonText: '确认',
     cancelButtonText: '取消',
     type: 'info'
-  }).then(() => {
-    ElMessage.success('订单提交成功，即将跳转到支付页面');
-    
-    // 模拟跳转到支付页面
-    setTimeout(() => {
-      router.push('/payment?order_id=123456');
-    }, 1000);
+  }).then(async () => {
+    try {
+      // 获取收货地址
+      const address = addresses.value.find(addr => addr.id === selectedAddressId.value);
+      
+      // 获取配送方式
+      const shipping = shippingOptions.value.find(opt => opt.id === selectedShippingId.value);
+      
+      // 获取支付方式
+      const payment = paymentOptions.value.find(opt => opt.id === selectedPaymentId.value);
+      
+      // 获取优惠券
+      const coupon = availableCoupons.value.find(c => c.id === selectedCouponId.value);
+      
+      // 构建订单数据
+      const orderData = {
+        items: selectedItems.value,
+        address,
+        shipping,
+        payment: {
+          id: payment.id,
+          name: payment.name
+        },
+        coupon: coupon ? {
+          id: coupon.id,
+          name: coupon.name,
+          amount: discount.value
+        } : null,
+        totalAmount: totalAmount.value,
+        shippingFee: shippingFee.value,
+        discount: discount.value,
+        payAmount: payAmount.value,
+        note: orderNote.value
+      };
+      
+      // 创建订单
+      const result = await orderStore.createOrder(orderData);
+      
+      if (result) {
+        ElMessage.success('订单提交成功，即将跳转到支付页面');
+        
+        // 如果是从购物车来的，清空已选择的商品
+        if (orderSource.value === 'cart') {
+          // 模拟从购物车中移除已购买的商品
+          // cartStore.removeSelectedItems();
+        }
+        
+        // 清空临时订单
+        orderStore.clearTempOrderItems();
+        
+        // 跳转到支付页面
+        router.push({
+          path: '/payment',
+          query: { 
+            order_id: result.orderId || '123456',
+            amount: payAmount.value
+          }
+        });
+      }
+    } catch (error) {
+      console.error('提交订单失败:', error);
+      ElMessage.error('提交订单失败，请稍后重试');
+    }
   }).catch(() => {
     // 用户取消操作
   });
 };
 
 // 初始化
-onMounted(() => {
-  // 这里可以从路由或状态管理中获取已选择的购物车商品
+onMounted(async () => {
+  // 判断购买来源
+  orderSource.value = route.query.from === 'buy_now' ? 'buy_now' : 'cart';
+  
+  if (orderSource.value === 'buy_now') {
+    // 如果是直接购买，从 orderStore 中获取临时订单项
+    const tempItems = orderStore.getTempOrderItems();
+    if (tempItems && tempItems.length > 0) {
+      selectedItems.value = tempItems;
+    } else {
+      // 如果没有临时订单项，返回首页
+      ElMessage.error('订单信息已失效，请重新购买');
+      router.push('/');
+      return;
+    }
+  } else {
+    // 如果是从购物车来的，从购物车中获取选中的商品
+    // 这里使用模拟数据，实际应该从 cartStore 中获取
+    selectedItems.value = [
+      {
+        id: 1,
+        title: '婴儿纯棉连体衣秋冬装加厚保暖新生儿衣服',
+        image: '/images/product1.jpg',
+        specs: ['粉色', '73cm'],
+        price: 89.9,
+        originalPrice: 129.9,
+        quantity: 1,
+        subtotal: 89.9
+      },
+      {
+        id: 2,
+        title: '儿童宝宝牙刷婴幼儿软毛护齿训练牙刷',
+        image: '/images/product2.jpg',
+        specs: ['蓝色', '2-4岁'],
+        price: 29.9,
+        quantity: 2,
+        subtotal: 59.8
+      }
+    ];
+  }
+  
+  // 加载可用的优惠券
+  await loadAvailableCoupons();
+  
+  // 默认选择第一个可用的优惠券
+  if (availableCoupons.value.length > 0) {
+    selectedCouponId.value = availableCoupons.value[0].id;
+  }
+});
+
+// 监听总金额变化，重新加载可用优惠券
+watch(totalAmount, (newValue) => {
+  if (newValue > 0) {
+    loadAvailableCoupons();
+  }
 });
 </script>
 

@@ -28,7 +28,7 @@
       <el-skeleton :rows="3" animated />
     </div>
     
-    <div v-else-if="favorites.length === 0" class="empty-container">
+    <div v-else-if="favorites.length === 0 && !dataError" class="empty-container">
       <el-empty description="收藏夹还是空的">
         <router-link to="/products">
           <el-button type="primary">去选购商品</el-button>
@@ -36,34 +36,47 @@
       </el-empty>
     </div>
     
+    <div v-else-if="dataError" class="error-container">
+      <el-alert
+        title="数据加载异常"
+        type="warning"
+        description="获取到的收藏数据异常，请刷新页面或稍后重试"
+        show-icon
+        :closable="false"
+      />
+      <div class="mt-3 text-center">
+        <el-button type="primary" @click="reloadData">重新加载</el-button>
+      </div>
+    </div>
+    
     <div v-else class="favorite-grid">
-      <div v-for="item in favorites" :key="item.id" class="favorite-item">
-        <div class="product-card">
+      <div v-for="item in favorites" :key="item.favoriteId" class="favorite-item">
+        <div class="product-card" v-if="item.product">
           <div class="product-image">
-            <router-link :to="`/product/${item.productId || item.id}`">
-              <img :src="item.image" :alt="item.name" />
+            <router-link :to="`/product/${item.product.productId}`">
+              <img :src="`/products/${item.product.productImg}`" :alt="item.product.productName" @error="onImageError" />
             </router-link>
             <div class="hover-actions">
-              <el-button type="danger" circle size="small" @click="removeFavorite(item.id)">
+              <el-button type="danger" circle size="small" @click="removeFavorite(item.favoriteId)">
                 <i class="el-icon-delete"></i>
               </el-button>
             </div>
           </div>
           
           <div class="product-info">
-            <router-link :to="`/product/${item.productId || item.id}`" class="product-name">
-              {{ item.name }}
+            <router-link :to="`/product/${item.product.productId}`" class="product-name">
+              {{ item.product.productName }}
             </router-link>
             
             <div class="product-price">
-              <span class="price-now">¥{{ formatPrice(item.price) }}</span>
-              <span v-if="item.originalPrice" class="price-original">
-                ¥{{ formatPrice(item.originalPrice) }}
+              <span class="price-now">¥{{ formatPrice(item.product.priceNew) }}</span>
+              <span v-if="item.product.priceOld" class="price-original">
+                ¥{{ formatPrice(item.product.priceOld) }}
               </span>
             </div>
             
             <div class="product-actions">
-              <el-button type="primary" size="small" @click="addToCart(item)">
+              <el-button type="primary" size="small" @click="addToCart(item.product)">
                 加入购物车
               </el-button>
             </div>
@@ -103,10 +116,18 @@ const favorites = ref([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(12)
+const dataError = ref(false)
 
 onMounted(() => {
   loadFavorites()
 })
+
+// 图像加载错误处理
+const onImageError = (event) => {
+  console.warn('图片加载失败:', event.target.src);
+  // 可以设置一个默认图片
+  // event.target.src = '/path/to/default-image.png'; 
+}
 
 // 格式化价格
 const formatPrice = (price) => {
@@ -117,6 +138,8 @@ const formatPrice = (price) => {
 // 加载收藏数据
 const loadFavorites = async () => {
   loading.value = true
+  dataError.value = false
+  
   try {
     const params = {
       page: currentPage.value,
@@ -126,17 +149,52 @@ const loadFavorites = async () => {
     const res = await getFavorites(params)
     
     if (res.code === 200) {
-      favorites.value = res.data.list || []
-      total.value = res.data.total || 0
+      console.log('收藏接口响应:', res.data) // 调试日志
+      
+      // 保存原始响应数据
+      const responseList = res.data.records || []
+      const responseTotal = res.data.total || 0
+      
+      // 数据一致性检查
+      if (responseTotal > 0 && responseList.length === 0) {
+        // 数据不一致，可能是缓存问题
+        console.warn('收藏数据不一致: 总数为', responseTotal, '但列表为空')
+        
+        // 尝试修正 - 使用总数更新前端展示
+        if (currentPage.value > 1) {
+          // 如果不是第一页，尝试返回第一页
+          currentPage.value = 1
+          await loadFavorites()
+          return
+        } else {
+          // 第一页就有问题，标记为错误状态
+          dataError.value = true
+        }
+      }
+      
+      favorites.value = responseList
+      total.value = responseTotal
+      
+      // 确保total与favorites长度匹配，防止显示矛盾
+      if (favorites.value.length === 0) {
+        total.value = 0
+      }
     } else {
       ElMessage.error(res.message || '获取收藏列表失败')
+      dataError.value = true
     }
   } catch (error) {
     console.error('加载收藏列表失败:', error)
     ElMessage.error('加载收藏列表失败，请稍后重试')
+    dataError.value = true
   } finally {
     loading.value = false
   }
+}
+
+// 重新加载数据
+const reloadData = () => {
+  loadFavorites()
 }
 
 // 处理页码变化
@@ -187,13 +245,12 @@ const clearFavorites = async () => {
 }
 
 // 加入购物车
-const addToCart = async (item) => {
+const addToCart = async (product) => {
   try {
-    const productId = item.productId || item.id
-    const result = await cartStore.addProductToCart({ id: productId }, 1)
+    const result = await cartStore.addProductToCart({ id: product.productId }, 1)
     
     if (result) {
-      ElMessage.success(`已将"${item.name}"加入购物车`)
+      ElMessage.success(`已将"${product.productName}"加入购物车`)
     }
   } catch (error) {
     console.error('加入购物车失败:', error)
@@ -233,11 +290,20 @@ const addToCart = async (item) => {
   }
 }
 
-.loading-container, .empty-container {
+.loading-container, .empty-container, .error-container {
   padding: 40px 0;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+}
+
+.mt-3 {
+  margin-top: 1rem;
+}
+
+.text-center {
+  text-align: center;
 }
 
 .favorite-grid {

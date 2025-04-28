@@ -173,7 +173,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive } from 'vue';
+import { ref, onMounted, computed, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserCoupons, getAvailableCoupons, receiveCoupon as apiReceiveCoupon } from '@/api/user';
 import { ElMessage } from 'element-plus';
@@ -190,17 +190,29 @@ const availableCouponsVisible = ref(false);
 const availableCoupons = ref([]);
 const loadingAvailable = ref(false);
 
+// 监听activeTab变化，自动加载对应数据
+watch(activeTab, (newValue, oldValue) => {
+  if (newValue !== oldValue) {
+    console.log(`标签页从 ${oldValue} 切换到 ${newValue}，自动加载数据`);
+    fetchCoupons();
+  }
+});
+
 // 根据状态筛选优惠券
 const unusedCoupons = computed(() => {
-  return allCoupons.value.filter(coupon => coupon.status === 'unused');
+  console.log('筛选未使用优惠券，当前数据:', allCoupons.value);
+  return allCoupons.value.filter(coupon => 
+    coupon.status === 'unused' || coupon.status === 'UNUSED' || coupon.status.toLowerCase() === 'unused');
 });
 
 const usedCoupons = computed(() => {
-  return allCoupons.value.filter(coupon => coupon.status === 'used');
+  return allCoupons.value.filter(coupon => 
+    coupon.status === 'used' || coupon.status === 'USED' || coupon.status.toLowerCase() === 'used');
 });
 
 const expiredCoupons = computed(() => {
-  return allCoupons.value.filter(coupon => coupon.status === 'expired');
+  return allCoupons.value.filter(coupon => 
+    coupon.status === 'expired' || coupon.status === 'EXPIRED' || coupon.status.toLowerCase() === 'expired');
 });
 
 // 格式化日期
@@ -214,8 +226,9 @@ const formatDate = (dateString) => {
 };
 
 // 处理标签页切换
-const handleTabClick = () => {
-  fetchCoupons();
+const handleTabClick = (tab) => {
+  console.log('标签页点击事件触发，tab名称:', tab.props.name);
+  // 不再需要在这里调用fetchCoupons，watch会自动处理
 };
 
 // 使用优惠券
@@ -298,13 +311,35 @@ const fetchCoupons = async () => {
   
   try {
     const params = {
-      status: activeTab.value
+      status: activeTab.value === 'unused' ? 'UNUSED' : 
+              activeTab.value === 'used' ? 'USED' : 'EXPIRED'
     };
     
+    console.log('获取用户优惠券，参数:', params);
     const res = await getUserCoupons(params);
+    console.log('优惠券API响应:', res);
     
     if (res.code === 200) {
-      allCoupons.value = res.data || [];
+      // 检查数据结构：可能是数组或是带有items属性的对象
+      let couponsData = [];
+      
+      if (Array.isArray(res.data)) {
+        console.log('API返回数组格式数据');
+        couponsData = res.data;
+      } else if (res.data && res.data.items && Array.isArray(res.data.items)) {
+        console.log('API返回对象格式数据，包含items属性');
+        couponsData = res.data.items;
+      } else if (res.data) {
+        console.log('API返回其他格式数据');
+        couponsData = Array.isArray(res.data) ? res.data : [res.data];
+      } else {
+        console.log('API返回数据为空');
+        couponsData = [];
+      }
+      
+      // 格式化优惠券数据
+      allCoupons.value = formatCouponData(couponsData);
+      console.log('格式化后的优惠券数据:', allCoupons.value);
     } else {
       ElMessage.error(res.message || '获取优惠券列表失败');
     }
@@ -313,6 +348,56 @@ const fetchCoupons = async () => {
     ElMessage.error('获取优惠券失败，请稍后重试');
   } finally {
     loading.value = false;
+  }
+};
+
+// 将后端数据格式化为组件所需格式
+const formatCouponData = (couponsData) => {
+  console.log('格式化前的原始数据:', couponsData);
+  if (!Array.isArray(couponsData)) {
+    console.warn('优惠券数据不是数组格式');
+    return [];
+  }
+  
+  return couponsData.map(item => {
+    try {
+      // 处理不同的数据结构
+      const coupon = item.coupon || item;
+      const status = item.status ? item.status.toLowerCase() : activeTab.value;
+
+      return {
+        id: item.id,
+        amount: coupon.value || 0,
+        name: coupon.name || '优惠券',
+        type: getCouponTypeText(coupon.type),
+        minSpend: coupon.minSpend || 0,
+        startDate: coupon.startTime || item.receiveTime || new Date(),
+        expireDate: item.expireTime || coupon.endTime || new Date(),
+        usedDate: item.useTime,
+        orderId: item.orderId,
+        scope: coupon.categoryIds ? getCouponScope(coupon.categoryIds, coupon.productIds) : '全场通用',
+        status: status,
+        description: coupon.description || '',
+        // 其他需要的属性...
+      };
+    } catch (error) {
+      console.error('格式化优惠券数据时出错:', error, item);
+      return null;
+    }
+  }).filter(Boolean); // 过滤掉null值
+};
+
+// 获取优惠券类型文本
+const getCouponTypeText = (type) => {
+  if (!type) return '满减券';
+  
+  switch(type) {
+    case 'FIXED':
+      return '满减券';
+    case 'PERCENTAGE':
+      return '折扣券';
+    default:
+      return type;
   }
 };
 

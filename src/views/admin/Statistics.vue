@@ -124,7 +124,7 @@
         <template #header>
           <div class="card-header">
             <span>最新订单</span>
-            <el-button type="text" @click="viewAllOrders">查看全部</el-button>
+            <el-button link @click="viewAllOrders">查看全部</el-button>
           </div>
         </template>
         <el-table :data="latestOrders" style="width: 100%">
@@ -141,7 +141,7 @@
           </el-table-column>
           <el-table-column label="操作" width="100">
             <template #default="scope">
-              <el-button type="text" @click="viewOrderDetail(scope.row)">查看</el-button>
+              <el-button link @click="viewOrderDetail(scope.row)">查看</el-button>
             </template>
           </el-table-column>
         </el-table>

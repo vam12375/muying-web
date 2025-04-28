@@ -225,7 +225,7 @@ export function addFavorite(productId) {
   return request({
     url: '/user/favorites',
     method: 'post',
-    data: { productId }
+    params: { productId }
   });
 }
 
