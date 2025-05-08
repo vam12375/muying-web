@@ -1,13 +1,21 @@
 <template>
-  <div class="address-manager-container">
+  <div class="address-manager-container" :class="{ 'checkout-mode': checkoutMode }">
     <!-- 页面标题和添加按钮 -->
-    <div class="section-header">
+    <div class="section-header" v-if="!checkoutMode">
       <div class="title-container">
         <h2 class="section-title">收货地址</h2>
         <div class="subtitle">管理您的收货地址，便于快速收货</div>
       </div>
       <el-button type="primary" class="add-button" @click="openAddressDialog()">
         <i class="el-icon-plus"></i>
+        添加新地址
+      </el-button>
+    </div>
+    
+    <!-- 结算模式的地址选择提示 -->
+    <div class="checkout-address-tip" v-if="checkoutMode">
+      请选择一个收货地址，或添加新地址
+      <el-button type="primary" class="add-button-small" @click="openAddressDialog()">
         添加新地址
       </el-button>
     </div>
@@ -32,7 +40,13 @@
       class="address-list"
       v-else
     >
-      <div v-for="address in addresses" :key="address.addressId" class="address-item">
+      <div 
+        v-for="address in addresses" 
+        :key="address.addressId" 
+        class="address-item" 
+        :class="{ 'address-selected': props.checkoutMode && address.addressId == props.initialSelectedId }"
+        @click="onAddressClick(address)"
+      >
         <div class="address-content">
           <div class="address-info">
             <!-- 地址头部信息 -->
@@ -55,14 +69,19 @@
             </div>
           </div>
           
+          <!-- 选中图标 -->
+          <div v-if="props.checkoutMode && address.addressId == props.initialSelectedId" class="selected-icon">
+            <el-icon color="#ff6700"><CircleCheckFilled /></el-icon>
+          </div>
+          
           <!-- 操作按钮 -->
-          <div class="address-actions">
+          <div v-else class="address-actions">
             <div class="action-buttons">
-              <el-button link @click="openAddressDialog(address)" class="edit-btn">
+              <el-button link @click.stop="openAddressDialog(address)" class="edit-btn">
                 <i class="el-icon-edit"></i> 编辑
               </el-button>
               <el-divider direction="vertical" />
-              <el-button link @click="deleteAddress(address)" class="delete-btn">
+              <el-button link @click.stop="deleteAddress(address)" class="delete-btn">
                 <i class="el-icon-delete"></i> 删除
               </el-button>
             </div>
@@ -72,7 +91,7 @@
               plain
               class="default-btn"
               :loading="address.setting"
-              @click="setDefaultAddress(address)"
+              @click.stop="setDefaultAddress(address)"
             >
               设为默认
             </el-button>
@@ -155,15 +174,42 @@
 
 <script>
 export default {
-  name: 'AddressManager'
+  name: 'AddressManager',
+  props: {
+    // 初始选中的地址ID
+    initialSelectedId: {
+      type: [Number, String],
+      default: null
+    },
+    // 结算页面模式 (简化UI)
+    checkoutMode: {
+      type: Boolean,
+      default: false
+    }
+  },
+  emits: ['address-selected']
 }
 </script>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch, defineProps, defineEmits } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserAddresses, addUserAddress, updateUserAddress, deleteUserAddress, setDefaultUserAddress } from '@/api/user'
 import regions from '@/utils/regions' // 导入完整的省市区数据
+import { CircleCheckFilled } from '@element-plus/icons-vue'
+
+const props = defineProps({
+  initialSelectedId: {
+    type: [Number, String],
+    default: null
+  },
+  checkoutMode: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const emit = defineEmits(['address-selected'])
 
 // 状态
 const loading = ref(false)
@@ -216,8 +262,12 @@ onMounted(() => {
 // 加载地址数据
 const loadAddresses = async () => {
   loading.value = true
+  console.log('[AddressManager] 开始加载地址数据')
+  
   try {
     const res = await getUserAddresses()
+    console.log('[AddressManager] 获取地址API响应:', res)
+    
     if (res.code === 200) {
       // 为每个地址添加loading状态
       const addressesData = (res.data || []).map(address => ({
@@ -225,11 +275,29 @@ const loadAddresses = async () => {
         setting: false
       }))
       addresses.value = addressesData
+      console.log('[AddressManager] 成功加载地址数量:', addressesData.length)
+      
+      // 检查是否有初始选中的地址ID
+      if (props.initialSelectedId) {
+        console.log('[AddressManager] 初始选中地址ID:', props.initialSelectedId)
+        const selected = addressesData.find(addr => addr.addressId == props.initialSelectedId)
+        if (selected) {
+          console.log('[AddressManager] 找到初始选中地址:', selected.receiver)
+          emit('address-selected', selected)
+        } else if (addressesData.length > 0 && props.checkoutMode) {
+          console.log('[AddressManager] 未找到初始选中地址，选择第一个地址')
+          emit('address-selected', addressesData[0])
+        }
+      } else if (addressesData.length > 0 && props.checkoutMode) {
+        console.log('[AddressManager] 无初始选中ID，在结算模式下选择第一个地址')
+        emit('address-selected', addressesData[0])
+      }
     } else {
+      console.error('[AddressManager] 获取地址列表失败:', res.message)
       ElMessage.error(res.message || '获取地址列表失败')
     }
   } catch (error) {
-    console.error('加载地址失败:', error)
+    console.error('[AddressManager] 加载地址失败:', error)
     ElMessage.error('加载地址失败，请稍后重试')
   } finally {
     loading.value = false
@@ -364,6 +432,14 @@ const deleteAddress = (address) => {
     .catch(() => {})
 }
 
+// 在结算页面模式下，点击地址卡片时发出选择事件
+const onAddressClick = (address) => {
+  if (props.checkoutMode) {
+    console.log('[AddressManager] 用户选择了地址:', address.receiver)
+    emit('address-selected', address)
+  }
+}
+
 // 设置默认地址
 const setDefaultAddress = async (address) => {
   // 设置loading状态
@@ -378,6 +454,11 @@ const setDefaultAddress = async (address) => {
         customClass: 'address-message'
       })
       await loadAddresses() // 重新加载地址列表
+      
+      // 如果在结算页面模式，选中该地址
+      if (props.checkoutMode) {
+        emit('address-selected', address)
+      }
     } else {
       ElMessage.error(res.message || '设置默认地址失败')
     }
@@ -388,6 +469,32 @@ const setDefaultAddress = async (address) => {
     address.setting = false
   }
 }
+
+// 监听初始选中的地址ID变化
+watch(() => props.initialSelectedId, (newId) => {
+  if (newId && addresses.value.length > 0) {
+    const address = addresses.value.find(addr => addr.addressId == newId)
+    if (address) {
+      emit('address-selected', address)
+    }
+  }
+}, { immediate: true })
+
+// 加载地址后检查是否有初始选中的地址
+watch(() => addresses.value, (newAddresses) => {
+  if (props.initialSelectedId && newAddresses.length > 0) {
+    const address = newAddresses.find(addr => addr.addressId == props.initialSelectedId)
+    if (address) {
+      emit('address-selected', address)
+    } else if (newAddresses.length > 0 && props.checkoutMode) {
+      // 如果没有找到指定ID的地址，但在结算模式下，选中第一个地址
+      emit('address-selected', newAddresses[0])
+    }
+  } else if (newAddresses.length > 0 && props.checkoutMode) {
+    // 如果没有初始ID但有地址，在结算模式下选中第一个
+    emit('address-selected', newAddresses[0])
+  }
+}, { immediate: true })
 
 // 格式化地址显示
 const formatAddress = (address) => {
@@ -413,418 +520,4 @@ const formatAddress = (address) => {
 }
 </script>
 
-<style lang="scss" scoped>
-.address-manager-container {
-  background-color: #fff;
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease-in-out;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  
-  .title-container {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .section-title {
-    font-size: 24px;
-    font-weight: 600;
-    color: #333;
-    margin: 0 0 8px 0;
-    position: relative;
-    
-    &::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      bottom: -8px;
-      width: 40px;
-      height: 3px;
-      background: linear-gradient(90deg, #f27c8d, #ffa9b7);
-      border-radius: 3px;
-    }
-  }
-  
-  .subtitle {
-    font-size: 14px;
-    color: #909399;
-    margin-top: 8px;
-  }
-  
-  .add-button {
-    font-weight: 500;
-    padding: 12px 24px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #f27c8d, #e86b7d);
-    border: none;
-    box-shadow: 0 4px 12px rgba(242, 124, 141, 0.3);
-    transition: all 0.3s ease;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 15px rgba(242, 124, 141, 0.4);
-    }
-    
-    &:active {
-      transform: translateY(0);
-      box-shadow: 0 2px 8px rgba(242, 124, 141, 0.3);
-    }
-  }
-}
-
-.loading-container, .empty-container {
-  padding: 60px 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 300px;
-  
-  .empty-description {
-    margin: 15px 0 25px;
-    color: #909399;
-    font-size: 14px;
-  }
-  
-  .empty-button {
-    padding: 12px 24px;
-    font-weight: 500;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #f27c8d, #e86b7d);
-    border: none;
-    box-shadow: 0 4px 12px rgba(242, 124, 141, 0.3);
-    transition: all 0.3s ease;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 15px rgba(242, 124, 141, 0.4);
-    }
-  }
-}
-
-.address-list {
-  margin-top: 25px;
-  
-  .address-item {
-    border: 1px solid #ebeef5;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-    
-    &:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-      border-color: #e1e4e8;
-    }
-  }
-  
-  .address-content {
-    padding: 24px;
-  }
-  
-  .address-info {
-    margin-bottom: 20px;
-  }
-  
-  .address-header {
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    
-    .recipient {
-      font-size: 18px;
-      font-weight: 600;
-      color: #303133;
-    }
-    
-    .phone {
-      color: #606266;
-      font-size: 15px;
-    }
-    
-    .default-tag {
-      border-radius: 4px;
-      font-weight: 500;
-      padding: 0 8px;
-      height: 22px;
-      line-height: 20px;
-      background-color: rgba(242, 124, 141, 0.1);
-      border-color: rgba(242, 124, 141, 0.2);
-      color: #f27c8d;
-    }
-    
-    .address-tag {
-      background-color: #ecf5ff;
-      border-color: #d9ecff;
-      color: #409eff;
-    }
-  }
-  
-  .address-detail {
-    color: #606266;
-    line-height: 1.6;
-    font-size: 15px;
-    padding-left: 3px;
-  }
-  
-  .address-postal {
-    margin-top: 8px;
-    font-size: 13px;
-    color: #909399;
-  }
-  
-  .address-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-top: 1px solid #ebeef5;
-    padding-top: 16px;
-    margin-top: 4px;
-    
-    .action-buttons {
-      display: flex;
-      align-items: center;
-      
-      .edit-btn, .delete-btn {
-        font-weight: 500;
-        transition: all 0.3s;
-        color: #606266;
-        
-        &:hover {
-          color: #f27c8d;
-          transform: translateY(-1px);
-        }
-      }
-      
-      .delete-btn:hover {
-        color: #f56c6c;
-      }
-      
-      .el-divider {
-        margin: 0 12px;
-        height: 16px;
-      }
-    }
-    
-    .default-btn {
-      font-weight: 500;
-      background: #f5f7fa;
-      color: #606266;
-      border: none;
-      transition: all 0.3s;
-      border-radius: 6px;
-      padding: 9px 16px;
-      
-      &:hover {
-        background: #f0f2f5;
-        color: #303133;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      }
-      
-      &:active {
-        transform: translateY(0);
-        box-shadow: none;
-      }
-    }
-  }
-}
-
-/* 地址列表动画 */
-.address-list-enter-active,
-.address-list-leave-active {
-  transition: all 0.5s ease;
-}
-.address-list-enter-from,
-.address-list-leave-to {
-  opacity: 0;
-  transform: translateY(30px);
-}
-
-/* 标签动画 */
-.tag-fade-enter-active,
-.tag-fade-leave-active {
-  transition: all 0.3s ease;
-}
-.tag-fade-enter-from,
-.tag-fade-leave-to {
-  opacity: 0;
-  transform: scale(0.8);
-}
-
-/* 表单样式 */
-.address-form {
-  .el-form-item {
-    margin-bottom: 22px;
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-  
-  .el-input, .el-select, .el-cascader, .el-checkbox {
-    width: 100%;
-  }
-  
-  .region-selector {
-    width: 100%;
-  }
-  
-  .default-checkbox {
-    color: #606266;
-  }
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  
-  .cancel-btn {
-    margin-right: 12px;
-    transition: all 0.3s;
-    
-    &:hover {
-      transform: translateY(-1px);
-    }
-  }
-  
-  .save-btn {
-    background: linear-gradient(135deg, #f27c8d, #e86b7d);
-    border: none;
-    font-weight: 500;
-    transition: all 0.3s;
-    
-    &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(242, 124, 141, 0.3);
-    }
-    
-    &:active {
-      transform: translateY(0);
-      box-shadow: none;
-    }
-  }
-}
-
-/* 响应式样式 */
-@media (max-width: 768px) {
-  .address-manager-container {
-    padding: 20px;
-    border-radius: 8px;
-  }
-  
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-    
-    .add-button {
-      width: 100%;
-      margin-top: 10px;
-    }
-  }
-  
-  .address-item {
-    .address-actions {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 15px;
-      
-      .action-buttons {
-        width: 100%;
-        justify-content: space-between;
-      }
-      
-      .default-btn {
-        width: 100%;
-        margin-top: 5px;
-      }
-    }
-  }
-  
-  .address-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .address-form {
-    .el-form-item {
-      margin-bottom: 16px;
-    }
-  }
-}
-
-/* 添加全局样式，使dialog更现代化 */
-:deep(.address-dialog) {
-  border-radius: 12px;
-  overflow: hidden;
-  
-  .el-dialog__header {
-    padding: 20px 24px;
-    margin-right: 0;
-    border-bottom: 1px solid #f0f2f5;
-    
-    .el-dialog__title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #303133;
-    }
-  }
-  
-  .el-dialog__body {
-    padding: 24px;
-  }
-  
-  .el-dialog__footer {
-    padding: 16px 24px;
-    border-top: 1px solid #f0f2f5;
-  }
-  
-  .el-form-item__label {
-    font-weight: 500;
-  }
-  
-  .el-input__inner {
-    border-radius: 6px;
-  }
-}
-
-/* 消息框样式 */
-:global(.address-message) {
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* 确认框样式 */
-:global(.address-confirm-box) {
-  border-radius: 12px;
-  
-  .el-message-box__header {
-    padding-top: 20px;
-  }
-  
-  .el-message-box__content {
-    padding: 24px;
-  }
-  
-  .el-message-box__btns {
-    padding: 12px 20px 20px;
-  }
-}
-</style>
+<style src="@/styles/user/AddressManager.scss" scoped></style>

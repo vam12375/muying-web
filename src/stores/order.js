@@ -10,6 +10,7 @@ import {
   payOrder,
   getOrderStats
 } from '@/api/order';
+import { getStatusText as utilGetStatusText, getStatusType as utilGetStatusType } from '@/utils/orderStatusMapper';
 
 export const useOrderStore = defineStore('order', {
   state: () => ({
@@ -47,28 +48,12 @@ export const useOrderStore = defineStore('order', {
   getters: {
     // 获取订单状态文本
     getOrderStatusText: () => (status) => {
-      const statusMap = {
-        'pending_payment': '待付款',
-        'pending_shipment': '待发货',
-        'pending_receive': '待收货',
-        'completed': '已完成',
-        'cancelled': '已取消',
-        'closed': '已关闭'
-      };
-      return statusMap[status] || '未知状态';
+      return utilGetStatusText(status);
     },
     
     // 获取订单状态类型
     getOrderStatusType: () => (status) => {
-      const typeMap = {
-        'pending_payment': 'warning',
-        'pending_shipment': 'primary',
-        'pending_receive': 'success',
-        'completed': 'success',
-        'cancelled': 'info',
-        'closed': 'info'
-      };
-      return typeMap[status] || 'info';
+      return utilGetStatusType(status);
     },
     
     // 检查是否有待处理的订单
@@ -131,16 +116,57 @@ export const useOrderStore = defineStore('order', {
       this.listLoading = true;
       
       try {
+        console.log('发送订单列表请求，参数:', params);
         const res = await getOrderList(params);
+        console.log('订单列表API响应:', res);
         
         if (res.code === 200) {
-          this.orderList = res.data.list || [];
+          // 确保数据结构完整
+          if (!res.data) {
+            console.warn('订单列表API响应中没有data字段');
+            res.data = { list: [], total: 0 };
+          }
+          
+          if (!res.data.list) {
+            console.warn('订单列表API响应中没有list字段');
+            res.data.list = [];
+          }
+          
+          // 添加orderNumber字段，兼容前端展示
+          const processedList = res.data.list.map(order => {
+            // 确保每个订单都有orderNumber字段，与orderNo保持一致
+            if (order.orderNo && !order.orderNumber) {
+              order.orderNumber = order.orderNo;
+            }
+            return order;
+          });
+          
+          this.orderList = processedList || [];
           this.total = res.data.total || 0;
+          
+          // 打印每个订单的关键信息，方便调试
+          if (this.orderList.length > 0) {
+            console.log(`获取到 ${this.orderList.length} 条订单数据`);
+            this.orderList.forEach((order, index) => {
+              console.log(`订单 ${index+1}/${this.orderList.length}:`, {
+                orderId: order.orderId,
+                orderNo: order.orderNo,
+                orderNumber: order.orderNumber,
+                status: order.status,
+                totalAmount: order.totalAmount,
+                products: order.products ? order.products.length : 0
+              });
+            });
+          } else {
+            console.warn('订单列表为空，检查当前筛选条件:', params);
+          }
+          
           return {
             list: this.orderList,
             total: this.total
           };
         } else {
+          console.error('订单列表API响应错误:', res.message || '未知错误');
           ElMessage.error(res.message || '获取订单列表失败');
           return {
             list: [],
@@ -172,6 +198,10 @@ export const useOrderStore = defineStore('order', {
         const res = await getOrderDetail(orderId);
         
         if (res.code === 200) {
+          // 确保订单数据包含orderNumber字段
+          if (res.data && res.data.orderNo && !res.data.orderNumber) {
+            res.data.orderNumber = res.data.orderNo;
+          }
           this.currentOrder = res.data;
           return res.data;
         } else {
@@ -192,7 +222,18 @@ export const useOrderStore = defineStore('order', {
       this.loading = true;
       
       try {
-        const res = await createOrder(orderData);
+        // 准备订单数据，确保与后端API要求一致
+        const requestData = {
+          addressId: orderData.addressId,
+          cartIds: orderData.cartIds,
+          paymentMethod: orderData.paymentMethod,
+          remark: orderData.remark || '',
+          couponId: orderData.couponId
+        };
+        
+        console.log('创建订单请求数据:', requestData);
+        
+        const res = await createOrder(requestData);
         
         if (res.code === 200) {
           ElMessage.success('订单创建成功');

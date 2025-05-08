@@ -1,51 +1,49 @@
 <template>
   <div class="user-center">
-    <main-layout>
-      <div class="container mx-auto py-8 px-4">
-        <div class="user-content">
-          <!-- 侧边栏导航栏-->
-          <div class="user-sidebar">
-            <div class="bg-white rounded-lg shadow-md p-6">
-              <!-- 用户基本信息 -->
-              <div class="flex flex-col items-center mb-6">
-                <div class="avatar-container mb-4">
-                  <img :src="userStore.avatar || defaultAvatar" :alt="userStore.username || '用户'" class="rounded-full h-24 w-24 object-cover border-2 border-gray-200">
-                </div>
-                <p class="text-gray-500 mb-2">{{ userStore.email }}</p>
+    <div class="container mx-auto py-8 px-4">
+      <div class="user-content">
+        <!-- 侧边栏导航栏-->
+        <div class="user-sidebar">
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <!-- 用户基本信息 -->
+            <div class="flex flex-col items-center mb-6">
+              <div class="avatar-container mb-4">
+                <img :src="userStore.avatar || defaultAvatar" :alt="userStore.username || '用户'" class="rounded-full h-24 w-24 object-cover border-2 border-gray-200">
               </div>
-              
-              <!-- 导航菜单 -->
-              <div class="user-menu">
-                <div 
-                  v-for="(menu, index) in menuItems" 
-                  :key="index"
-                  :class="['menu-item', { active: activeMenu === menu.key }]"
-                  @click="activeMenu = menu.key"
-                >
-                  <el-icon class="menu-icon">
-                    <component :is="dynamicIconComponent(menu.icon)" />
-                  </el-icon>
-                  <span>{{ menu.label }}</span>
-                </div>
-              </div>
+              <p class="text-gray-500 mb-2">{{ userStore.email }}</p>
             </div>
-          </div>
-          
-          <!-- 内容区域 -->
-          <div class="user-main-content">
-            <div class="bg-white rounded-lg shadow-md p-6">
-              <!-- 根据选中的菜单显示对应组件-->
-              <user-info v-if="activeMenu === 'info'" />
-              <address-manager v-else-if="activeMenu === 'address'" />
-              <favorite-list v-else-if="activeMenu === 'favorites'" />
-              <order-list v-else-if="activeMenu === 'orders'" />
-              <user-coupons v-else-if="activeMenu === 'coupons'" />
-              <user-points v-else-if="activeMenu === 'points'" />
+            
+            <!-- 导航菜单 -->
+            <div class="user-menu">
+              <div 
+                v-for="(menu, index) in menuItems" 
+                :key="index"
+                :class="['menu-item', { active: activeMenu === menu.key }]"
+                @click="activeMenu = menu.key"
+              >
+                <el-icon class="menu-icon">
+                  <component :is="dynamicIconComponent(menu.icon)" />
+                </el-icon>
+                <span>{{ menu.label }}</span>
+              </div>
             </div>
           </div>
         </div>
+        
+        <!-- 内容区域 -->
+        <div class="user-main-content">
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <!-- 根据选中的菜单显示对应组件-->
+            <user-info v-if="activeMenu === 'info'" />
+            <address-manager v-else-if="activeMenu === 'address'" />
+            <favorite-list v-else-if="activeMenu === 'favorites'" />
+            <order-list v-else-if="activeMenu === 'orders'" />
+            <user-coupons v-else-if="activeMenu === 'coupons'" />
+            <user-points v-else-if="activeMenu === 'points'" />
+          </div>
+        </div>
       </div>
-    </main-layout>
+    </div>
   </div>
 </template>
 

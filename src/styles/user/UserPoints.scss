@@ -1,0 +1,197 @@
+.user-points-container {
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: #333;
+  }
+  
+  .points-summary {
+    display: flex;
+    margin-bottom: 30px;
+    padding: 20px;
+  }
+  
+  .points-value {
+    display: flex;
+    flex-direction: column;
+    margin-right: 50px;
+  }
+  
+  .points-label {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 5px;
+  }
+  
+  .points-amount {
+    font-size: 36px;
+    font-weight: bold;
+    color: #ff6700;
+  }
+  
+  .points-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .points-info p {
+    margin-bottom: 10px;
+    color: #666;
+  }
+  
+  .points-actions {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .records-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  
+  .records-header h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+  
+  .text-success {
+    color: #67c23a;
+    font-weight: bold;
+  }
+  
+  .text-danger {
+    color: #f56c6c;
+    font-weight: bold;
+  }
+  
+  .pagination {
+    margin-top: 20px;
+    text-align: center;
+  }
+  
+  .exchange-content {
+    padding: 0 20px;
+  }
+  
+  .exchange-info {
+    font-size: 16px;
+    margin-bottom: 20px;
+  }
+  
+  .gift-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+  
+  .gift-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+  }
+  
+  .gift-image {
+    width: 80px;
+    height: 80px;
+    margin-right: 15px;
+    object-fit: cover;
+  }
+  
+  .gift-details {
+    flex: 1;
+  }
+  
+  .gift-details h4 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+  }
+  
+  .points-required {
+    color: #ff6700;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  .rules-content {
+    padding: 0 10px;
+  }
+  
+  .rule-item {
+    margin-bottom: 15px;
+  }
+  
+  .rule-item h4 {
+    margin: 0 0 8px 0;
+    color: #333;
+  }
+  
+  .rule-item p {
+    margin: 0 0 5px 0;
+    color: #666;
+  }
+  
+  .rule-value {
+    font-weight: bold;
+  }
+  
+  .points-value {
+    color: #ff6700;
+  }
+  
+  .sign-in-result {
+    text-align: center;
+    padding: 20px 0;
+  }
+  
+  .success-icon {
+    font-size: 48px;
+    color: #67c23a;
+    margin-bottom: 15px;
+  }
+  
+  .points-earned {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ff6700;
+  }
+  
+  .sign-in-tips {
+    margin-top: 15px;
+    color: #909399;
+  }
+  
+  @media (max-width: 768px) {
+    .points-summary {
+      flex-direction: column;
+    }
+    
+    .points-value {
+      margin-right: 0;
+      margin-bottom: 20px;
+    }
+    
+    .gift-list {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  /* 错误提示样式 */
+  .session-error-alert,
+  .api-error-alert {
+    margin-bottom: 20px;
+  }
+  
+  .error-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+  }

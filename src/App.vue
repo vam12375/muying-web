@@ -1,13 +1,15 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, onUnmounted, getCurrentInstance } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import Navbar from '@/components/layout/Navbar.vue'
 import { useRoute } from 'vue-router'
+import { cleanupRequests } from '@/utils/request'
 
 const userStore = useUserStore()
 const cartStore = useCartStore()
 const route = useRoute()
+const instance = getCurrentInstance()
 
 onMounted(() => {
   // 初始化检查用户登录状态
@@ -22,6 +24,11 @@ onMounted(() => {
 // 判断当前是否是登录页面
 const isLoginPage = computed(() => {
   return route.path === '/login' || route.path === '/register'
+})
+
+// 在组件卸载时清理请求状态
+onUnmounted(() => {
+  cleanupRequests()
 })
 </script>
 

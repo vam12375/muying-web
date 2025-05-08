@@ -1,0 +1,874 @@
+// 母婴主题配色变量
+:root {
+  // 主色调 - 柔和粉色系
+  --babyblue-50: #f0f9ff;
+  --babyblue-100: #e0f2fe;
+  --babyblue-200: #bae6fd;
+  --babyblue-300: #7dd3fc;
+  --babyblue-400: #38bdf8;
+  --babyblue-500: #0ea5e9;
+  
+  --babypink-50: #fdf2f8;
+  --babypink-100: #fce7f3;
+  --babypink-200: #fbcfe8;
+  --babypink-300: #f9a8d4;
+  --babypink-400: #f472b6;
+  --babypink-500: #ec4899;
+
+  --primary-50: var(--babypink-50);
+  --primary-100: var(--babypink-100);
+  --primary-200: var(--babypink-200);
+  --primary-300: var(--babypink-300);
+  --primary-400: var(--babypink-400);
+  --primary-500: var(--babypink-500);
+  
+  // 状态颜色
+  --status-pending-payment: #ff9500;
+  --status-pending-shipment: #3498db;
+  --status-pending-receive: #2ecc71;
+  --status-completed: #8e44ad;
+  --status-cancelled: #95a5a6;
+  --status-closed: #7f8c8d;
+  
+  // 阴影
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.03), 0 4px 6px rgba(0,0,0,0.05);
+  --shadow-xl: 0 20px 25px rgba(0,0,0,0.03), 0 8px 10px rgba(0,0,0,0.04);
+  
+  // 动画
+  --bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  
+  // 圆角
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+}
+
+// 订单页面样式
+.orders-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+  padding-bottom: 4rem;
+  
+  // 页面标题区域
+  .page-header {
+    padding-top: 2rem;
+    padding-bottom: 1.5rem;
+    
+    .header-content {
+      margin-bottom: 1.5rem;
+    }
+    
+    .page-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 0.5rem;
+      position: relative;
+      display: inline-block;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -6px;
+        left: 0;
+        width: 40%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-400), var(--primary-300));
+        border-radius: var(--radius-full);
+      }
+    }
+    
+    .page-subtitle {
+      color: #666;
+      font-size: 1rem;
+      margin-top: 0.75rem;
+    }
+  }
+  
+  // 订单统计卡片
+  .order-stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+    
+    .stat-card {
+      background: white;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      transition: all 0.3s var(--ease-out);
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #ccc;
+        opacity: 0.7;
+      }
+      
+      &:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+        
+        .stat-arrow {
+          transform: translateX(4px);
+        }
+      }
+      
+      .stat-icon {
+        font-size: 1.75rem;
+        margin-right: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-full);
+        background-color: rgba(0, 0, 0, 0.06);
+        
+        .el-icon {
+          font-size: 1.5rem;
+        }
+      }
+      
+      .stat-content {
+        flex: 1;
+      }
+      
+      .stat-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 0.25rem;
+      }
+      
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      
+      .stat-arrow {
+        color: #999;
+        font-size: 1.25rem;
+        transition: transform 0.2s var(--ease-out);
+      }
+      
+      // 状态卡片颜色
+      &.status-pending-payment {
+        &::before {
+          background: var(--status-pending-payment);
+        }
+        
+        .stat-icon {
+          color: var(--status-pending-payment);
+          background-color: rgba(255, 149, 0, 0.1);
+        }
+        
+        .stat-value {
+          color: var(--status-pending-payment);
+        }
+      }
+      
+      &.status-pending-shipment {
+        &::before {
+          background: var(--status-pending-shipment);
+        }
+        
+        .stat-icon {
+          color: var(--status-pending-shipment);
+          background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        .stat-value {
+          color: var(--status-pending-shipment);
+        }
+      }
+      
+      &.status-pending-receive {
+        &::before {
+          background: var(--status-pending-receive);
+        }
+        
+        .stat-icon {
+          color: var(--status-pending-receive);
+          background-color: rgba(46, 204, 113, 0.1);
+        }
+        
+        .stat-value {
+          color: var(--status-pending-receive);
+        }
+      }
+      
+      &.status-completed {
+        &::before {
+          background: var(--status-completed);
+        }
+        
+        .stat-icon {
+          color: var(--status-completed);
+          background-color: rgba(142, 68, 173, 0.1);
+        }
+        
+        .stat-value {
+          color: var(--status-completed);
+        }
+      }
+    }
+  }
+  
+  // 过滤面板
+  .filter-panel {
+    background-color: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    
+    .filter-tabs {
+      display: flex;
+      overflow-x: auto;
+      gap: 0.75rem;
+      padding-bottom: 1rem;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid #eee;
+      
+      &::-webkit-scrollbar {
+        height: 4px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: var(--radius-full);
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: var(--radius-full);
+      }
+      
+      .filter-tab {
+        padding: 0.5rem 1rem;
+        font-size: 0.95rem;
+        color: #666;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.25s var(--ease-out);
+        white-space: nowrap;
+        
+        .tab-text {
+          display: block;
+          position: relative;
+          z-index: 1;
+        }
+        
+        .tab-indicator {
+          position: absolute;
+          bottom: -4px;
+          left: 50%;
+          width: 0;
+          height: 3px;
+          background: linear-gradient(90deg, var(--primary-400), var(--primary-300));
+          border-radius: var(--radius-full);
+          transition: all 0.25s var(--ease-out);
+          transform: translateX(-50%);
+        }
+        
+        &:hover {
+          color: #333;
+          
+          .tab-indicator {
+            width: 20px;
+          }
+        }
+        
+        &.active {
+          color: var(--primary-500);
+          font-weight: 600;
+          
+          .tab-indicator {
+            width: 30px;
+          }
+        }
+      }
+    }
+    
+    .advanced-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      
+      .order-search {
+        flex: 1;
+        min-width: 200px;
+      }
+      
+      .date-range {
+        flex: 2;
+        min-width: 300px;
+      }
+      
+      .search-btn, .reset-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+    }
+  }
+  
+  // 订单列表容器
+  .orders-container {
+    position: relative;
+    min-height: 400px;
+    
+    // 加载中状态
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 4rem 0;
+      
+      .loading-animation {
+        margin-bottom: 1.5rem;
+        
+        .baby-cart {
+          animation: float 3s infinite ease-in-out;
+          
+          .baby-cart-icon {
+            width: 64px;
+            height: 64px;
+            fill: var(--primary-400);
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+          }
+        }
+      }
+      
+      .loading-text {
+        color: #666;
+        font-size: 1rem;
+      }
+    }
+    
+    // 空状态
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 0;
+      text-align: center;
+      
+      .empty-illustration {
+        max-width: 200px;
+        margin-bottom: 1.5rem;
+        animation: float 4s infinite ease-in-out;
+        
+        .empty-img {
+          width: 100%;
+          height: auto;
+        }
+      }
+      
+      .empty-title {
+        font-size: 1.25rem;
+        color: #444;
+        margin-bottom: 0.5rem;
+      }
+      
+      .empty-desc {
+        color: #666;
+        margin-bottom: 1.5rem;
+        max-width: 400px;
+      }
+      
+      .shop-btn {
+        min-width: 120px;
+      }
+    }
+    
+    // 订单列表
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    
+    // 订单项目样式
+    .order-card {
+      background: white;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: all 0.3s var(--ease-out);
+      
+      &:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+      }
+      
+      // 订单头部
+      .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #eee;
+        
+        .order-info {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          
+          .order-date {
+            color: #666;
+            font-size: 0.9rem;
+          }
+          
+          .order-number {
+            color: #444;
+            font-weight: 500;
+            font-size: 0.9rem;
+          }
+        }
+        
+        .order-status {
+          .status-tag {
+            display: inline-block;
+            padding: 0.3rem 0.75rem;
+            border-radius: var(--radius-full);
+            font-size: 0.85rem;
+            font-weight: 600;
+            
+            &.status-pending-payment {
+              background-color: rgba(255, 149, 0, 0.1);
+              color: var(--status-pending-payment);
+            }
+            
+            &.status-pending-shipment {
+              background-color: rgba(52, 152, 219, 0.1);
+              color: var(--status-pending-shipment);
+            }
+            
+            &.status-pending-receive {
+              background-color: rgba(46, 204, 113, 0.1);
+              color: var(--status-pending-receive);
+            }
+            
+            &.status-completed {
+              background-color: rgba(142, 68, 173, 0.1);
+              color: var(--status-completed);
+            }
+            
+            &.status-cancelled {
+              background-color: rgba(149, 165, 166, 0.1);
+              color: var(--status-cancelled);
+            }
+            
+            &.status-closed {
+              background-color: rgba(127, 140, 141, 0.1);
+              color: var(--status-closed);
+            }
+          }
+        }
+      }
+      
+      // 订单商品列表
+      .order-products {
+        padding: 1rem 1.5rem;
+        
+        .product-item {
+          display: flex;
+          align-items: center;
+          padding: 0.75rem 0;
+          border-bottom: 1px dashed #eee;
+          
+          &:last-child {
+            border-bottom: none;
+          }
+          
+          .product-image {
+            width: 70px;
+            height: 70px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
+            
+            .product-img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              transition: transform 0.3s var(--ease-out);
+              
+              &:hover {
+                transform: scale(1.05);
+              }
+            }
+          }
+          
+          .product-info {
+            flex: 1;
+            padding: 0 1.25rem;
+            min-width: 0;
+            
+            .product-name {
+              font-size: 0.95rem;
+              font-weight: 500;
+              color: #333;
+              margin-bottom: 0.5rem;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            
+            .product-specs {
+              font-size: 0.85rem;
+              color: #888;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+          }
+          
+          .product-price {
+            flex-shrink: 0;
+            text-align: right;
+            
+            .price {
+              display: block;
+              font-weight: 600;
+              color: #333;
+              font-size: 0.95rem;
+            }
+            
+            .quantity {
+              display: block;
+              color: #888;
+              font-size: 0.85rem;
+              margin-top: 0.25rem;
+            }
+          }
+        }
+      }
+      
+      // 订单摘要
+      .order-summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background-color: #f8f9fa;
+        border-top: 1px solid #eee;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        
+        .order-total {
+          display: flex;
+          align-items: baseline;
+          gap: 1rem;
+          color: #666;
+          font-size: 0.9rem;
+          
+          .total-price {
+            font-size: 1rem;
+            font-weight: 500;
+            
+            strong {
+              color: var(--primary-500);
+              font-weight: 700;
+              font-size: 1.1rem;
+            }
+          }
+        }
+        
+        .order-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          
+          .action-btn {
+            font-size: 0.85rem;
+            
+            &.primary-btn {
+              background: linear-gradient(135deg, var(--primary-400), var(--primary-500));
+              border-color: transparent;
+              box-shadow: 0 2px 4px rgba(236, 72, 153, 0.25);
+              
+              &:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 6px rgba(236, 72, 153, 0.3);
+              }
+              
+              &:active {
+                transform: translateY(0);
+              }
+            }
+          }
+        }
+      }
+      
+      // 订单进度条
+      .order-progress {
+        padding: 1.5rem;
+        border-top: 1px solid #eee;
+        
+        .progress-track {
+          position: relative;
+          padding: 0.5rem 0;
+          
+          .progress-steps {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-300), var(--primary-400));
+            transform: translateY(-50%);
+            border-radius: var(--radius-full);
+            transition: width 0.5s var(--ease-out);
+            
+            &.progress-step-1 {
+              width: 0%;
+            }
+            
+            &.progress-step-2 {
+              width: 33.33%;
+            }
+            
+            &.progress-step-3 {
+              width: 66.66%;
+            }
+            
+            &.progress-step-4 {
+              width: 100%;
+            }
+          }
+          
+          .progress-milestones {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 2;
+            
+            &::before {
+              content: '';
+              position: absolute;
+              top: 50%;
+              left: 0;
+              right: 0;
+              height: 2px;
+              background-color: #eee;
+              transform: translateY(-50%);
+              z-index: -1;
+            }
+            
+            .milestone {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              
+              .milestone-dot {
+                width: 20px;
+                height: 20px;
+                border-radius: var(--radius-full);
+                background-color: white;
+                border: 2px solid #ddd;
+                margin-bottom: 0.5rem;
+                transition: all 0.3s var(--ease-out);
+              }
+              
+              .milestone-label {
+                font-size: 0.85rem;
+                color: #888;
+                transition: all 0.3s var(--ease-out);
+              }
+              
+              &.active {
+                .milestone-dot {
+                  background-color: var(--primary-400);
+                  border-color: var(--primary-300);
+                  box-shadow: 0 0 0 4px rgba(249, 168, 212, 0.25);
+                }
+                
+                .milestone-label {
+                  color: var(--primary-500);
+                  font-weight: 600;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // 分页容器
+    .pagination-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 2rem;
+      padding: 1rem 0;
+    }
+  }
+}
+
+// 列表项的动画过渡
+.order-list-enter-active,
+.order-list-leave-active {
+  transition: all 0.5s var(--ease-out);
+}
+
+.order-list-enter-from,
+.order-list-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.order-list-move {
+  transition: transform 0.5s var(--ease-out);
+}
+
+// 漂浮动画
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+// 响应式调整
+@media (max-width: 768px) {
+  .orders-page {
+    .order-stats-cards {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .orders-container {
+      .order-card {
+        .order-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.75rem;
+          
+          .order-info {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.35rem;
+          }
+        }
+        
+        .order-summary {
+          flex-direction: column;
+          align-items: flex-start;
+          
+          .order-total {
+            flex-direction: column;
+            gap: 0.35rem;
+            margin-bottom: 0.75rem;
+          }
+          
+          .order-actions {
+            width: 100%;
+            justify-content: flex-end;
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .orders-page {
+    .order-stats-cards {
+      grid-template-columns: 1fr;
+    }
+    
+    .filter-panel {
+      .advanced-filters {
+        flex-direction: column;
+        align-items: stretch;
+        
+        .order-search,
+        .date-range {
+          width: 100%;
+        }
+      }
+    }
+  }
+}
+
+// 空状态的备用样式（SVG加载失败时）
+.empty-state {
+  .empty-illustration {
+    position: relative;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background-color: var(--babypink-100);
+      z-index: -1;
+    }
+    
+    img.empty-img {
+      display: block;
+      
+      // 当图像加载失败时的备用样式
+      &:not([src]), &[src=""], &:not([src=""]):not([src^="data:"]):not([src^="/"]):not([src^="http"]) {
+        position: relative;
+        width: 150px;
+        height: 150px;
+
+        &::before {
+          content: '暂无订单';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 16px;
+          color: var(--primary-400);
+          font-weight: bold;
+        }
+        
+        &::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: var(--babypink-50);
+          border-radius: 50%;
+          border: 2px dashed var(--primary-300);
+          z-index: -1;
+        }
+      }
+    }
+  }
+}

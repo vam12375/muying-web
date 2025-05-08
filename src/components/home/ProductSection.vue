@@ -15,7 +15,7 @@
         @click="goToProduct(product.id)"
       >
         <div class="product-image">
-          <img :src="product.imageUrl" :alt="product.name">
+          <img :src="product.imageUrl ? `/products/${product.imageUrl.replace(/^.*[\\\/]/, '')}` : ''" :alt="product.name">
           <div v-if="product.discount" class="discount-tag">{{ product.discount }}</div>
         </div>
         <div class="product-info">

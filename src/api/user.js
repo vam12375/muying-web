@@ -109,9 +109,28 @@ export function logout() {
  * @returns {Promise}
  */
 export function getUserAddresses() {
-  return request({
-    url: '/user/addresses',
-    method: 'get'
+  return new Promise((resolve, reject) => {
+    request({
+      url: '/user/addresses',
+      method: 'get'
+    }).then(response => {
+      resolve(response);
+    }).catch(error => {
+      console.error('获取地址列表失败:', error);
+      
+      // 网络错误时使用默认空地址列表
+      if (error.message === 'Network Error') {
+        console.warn('地址API网络错误，返回默认空地址列表');
+        resolve({
+          code: 200,
+          message: '操作成功',
+          success: true,
+          data: []  // 空数组表示没有地址
+        });
+      } else {
+        reject(error);
+      }
+    });
   });
 }
 
@@ -249,5 +268,17 @@ export function clearFavorites() {
   return request({
     url: '/user/favorites/clear',
     method: 'delete'
+  });
+}
+
+/**
+ * 同步会话
+ * 从JWT提取用户信息并同步到后端HttpSession
+ * @returns {Promise}
+ */
+export function syncSession() {
+  return request({
+    url: '/session/sync',
+    method: 'post'
   });
 } 

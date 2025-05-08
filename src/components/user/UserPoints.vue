@@ -1,5 +1,37 @@
 <template>
   <div class="user-points-container">
+    <!-- 会话失效错误提示 -->
+    <el-alert
+      v-if="sessionError"
+      title="登录会话已失效"
+      type="error"
+      description="您的登录状态已过期，请重新登录以继续操作。"
+      show-icon
+      :closable="false"
+      class="session-error-alert">
+      <template #default>
+        <div class="error-actions">
+          <el-button type="primary" @click="handleRelogin">重新登录</el-button>
+          <el-button @click="handleRetry">重试</el-button>
+        </div>
+      </template>
+    </el-alert>
+
+    <!-- 普通API错误提示 -->
+    <el-alert
+      v-if="apiError && !sessionError"
+      :title="errorMessage || '请求失败'"
+      type="error"
+      description="获取数据失败，请稍后再试。"
+      show-icon
+      class="api-error-alert">
+      <template #default>
+        <div class="error-actions">
+          <el-button @click="handleRetry">重试</el-button>
+        </div>
+      </template>
+    </el-alert>
+
     <h2 class="section-title">我的积分</h2>
     
     <el-card class="points-summary">
@@ -137,6 +169,7 @@ import {
   userSignIn,
   getPointsRules
 } from '@/api/points';
+import router from '@/router';
 
 // 用户积分
 const userPoints = ref(0);
@@ -164,6 +197,12 @@ const loadingGifts = ref(false);
 const rulesDialogVisible = ref(false);
 const pointsRules = ref([]);
 const loadingRules = ref(false);
+
+// 会话状态和错误处理
+const sessionError = ref(false);
+const apiError = ref(false);
+const errorMessage = ref('');
+const hasLoadedData = ref(false);
 
 // 格式化日期
 const formatDate = (dateString) => {
@@ -193,12 +232,34 @@ const loadUserPoints = async () => {
         // 如果是直接返回数字
         userPoints.value = res.data || 0;
       }
+      
+      // 标记数据已加载成功
+      hasLoadedData.value = true;
+      // 重置错误状态
+      sessionError.value = false;
+      apiError.value = false;
     } else {
       ElMessage.error(res.message || '获取积分失败');
+      apiError.value = true;
+      errorMessage.value = res.message || '获取积分失败';
     }
   } catch (error) {
     console.error('获取积分失败:', error);
-    ElMessage.error('获取积分失败，请稍后重试');
+    
+    // 特殊处理会话失效问题
+    if (error.response && error.response.status === 500) {
+      const errorData = error.response.data;
+      if (errorData && errorData.includes('Session was invalidated')) {
+        sessionError.value = true;
+        errorMessage.value = '登录会话已失效，请重新登录';
+      } else {
+        apiError.value = true;
+        errorMessage.value = '获取积分失败，请稍后重试';
+      }
+    } else {
+      apiError.value = true;
+      errorMessage.value = '获取积分失败，请稍后重试';
+    }
   }
 };
 
@@ -211,6 +272,16 @@ const checkSignInStatus = async () => {
     }
   } catch (error) {
     console.error('获取签到状态失败:', error);
+    
+    // 特殊处理会话失效问题
+    if (error.response && error.response.status === 500) {
+      const errorData = error.response.data;
+      if (errorData && errorData.includes('Session was invalidated')) {
+        sessionError.value = true;
+        errorMessage.value = '登录会话已失效，请重新登录';
+      }
+    }
+    // 签到状态获取失败不弹出全局错误提示，避免多个错误提示重复出现
   }
 };
 
@@ -352,12 +423,31 @@ const fetchPointsRecords = async () => {
       
       // 调试信息，帮助排查问题
       console.log('积分记录数据:', res.data);
+      
+      // 重置错误状态
+      apiError.value = false;
     } else {
       ElMessage.error(res.message || '获取积分记录失败');
+      apiError.value = true;
+      errorMessage.value = res.message || '获取积分记录失败';
     }
   } catch (error) {
     console.error('获取积分记录失败:', error);
-    ElMessage.error('获取积分记录失败，请稍后重试');
+    
+    // 特殊处理会话失效问题
+    if (error.response && error.response.status === 500) {
+      const errorData = error.response.data;
+      if (errorData && errorData.includes('Session was invalidated')) {
+        sessionError.value = true;
+        errorMessage.value = '登录会话已失效，请重新登录';
+      } else {
+        apiError.value = true;
+        errorMessage.value = '获取积分记录失败，请稍后重试';
+      }
+    } else {
+      apiError.value = true;
+      errorMessage.value = '获取积分记录失败，请稍后重试';
+    }
   } finally {
     loading.value = false;
     emptyText.value = '暂无积分记录';
@@ -384,6 +474,30 @@ const getSourceTypeText = (source) => {
   return sourceMap[source] || source;
 };
 
+// 重新登录处理
+const handleRelogin = () => {
+  // 清除本地的token和会话相关信息
+  // 假设auth.js中有removeToken方法
+  import('@/utils/auth').then(({ removeToken }) => {
+    removeToken();
+    // 跳转到登录页，并带上当前页面作为重定向目标
+    router.push(`/login?redirect=${encodeURIComponent(router.currentRoute.value.fullPath)}`);
+  });
+};
+
+// 重试功能
+const handleRetry = () => {
+  // 重置错误状态
+  sessionError.value = false;
+  apiError.value = false;
+  errorMessage.value = '';
+  
+  // 重新加载所有数据
+  loadUserPoints();
+  fetchPointsRecords();
+  checkSignInStatus();
+};
+
 onMounted(() => {
   loadUserPoints();
   fetchPointsRecords();
@@ -391,190 +505,4 @@ onMounted(() => {
 });
 </script>
 
-<style lang="scss" scoped>
-.user-points-container {
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-}
-
-.section-title {
-  margin-bottom: 20px;
-  font-size: 24px;
-  color: #333;
-}
-
-.points-summary {
-  display: flex;
-  margin-bottom: 30px;
-  padding: 20px;
-}
-
-.points-value {
-  display: flex;
-  flex-direction: column;
-  margin-right: 50px;
-}
-
-.points-label {
-  font-size: 16px;
-  color: #666;
-  margin-bottom: 5px;
-}
-
-.points-amount {
-  font-size: 36px;
-  font-weight: bold;
-  color: #ff6700;
-}
-
-.points-info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.points-info p {
-  margin-bottom: 10px;
-  color: #666;
-}
-
-.points-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.records-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.records-header h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.text-success {
-  color: #67c23a;
-  font-weight: bold;
-}
-
-.text-danger {
-  color: #f56c6c;
-  font-weight: bold;
-}
-
-.pagination {
-  margin-top: 20px;
-  text-align: center;
-}
-
-.exchange-content {
-  padding: 0 20px;
-}
-
-.exchange-info {
-  font-size: 16px;
-  margin-bottom: 20px;
-}
-
-.gift-list {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-}
-
-.gift-item {
-  display: flex;
-  align-items: center;
-  padding: 15px;
-}
-
-.gift-image {
-  width: 80px;
-  height: 80px;
-  margin-right: 15px;
-  object-fit: cover;
-}
-
-.gift-details {
-  flex: 1;
-}
-
-.gift-details h4 {
-  margin: 0 0 5px 0;
-  font-size: 16px;
-}
-
-.points-required {
-  color: #ff6700;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-.rules-content {
-  padding: 0 10px;
-}
-
-.rule-item {
-  margin-bottom: 15px;
-}
-
-.rule-item h4 {
-  margin: 0 0 8px 0;
-  color: #333;
-}
-
-.rule-item p {
-  margin: 0 0 5px 0;
-  color: #666;
-}
-
-.rule-value {
-  font-weight: bold;
-}
-
-.points-value {
-  color: #ff6700;
-}
-
-.sign-in-result {
-  text-align: center;
-  padding: 20px 0;
-}
-
-.success-icon {
-  font-size: 48px;
-  color: #67c23a;
-  margin-bottom: 15px;
-}
-
-.points-earned {
-  font-size: 20px;
-  font-weight: bold;
-  color: #ff6700;
-}
-
-.sign-in-tips {
-  margin-top: 15px;
-  color: #909399;
-}
-
-@media (max-width: 768px) {
-  .points-summary {
-    flex-direction: column;
-  }
-  
-  .points-value {
-    margin-right: 0;
-    margin-bottom: 20px;
-  }
-  
-  .gift-list {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
+<style src="@/styles/user/UserPoints.scss" scoped></style>

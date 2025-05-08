@@ -6,7 +6,7 @@ import request from '@/utils/request';
  */
 export function getCartList() {
   return request({
-    url: '/cart',
+    url: '/cart/list',
     method: 'get'
   });
 }
@@ -18,7 +18,7 @@ export function getCartList() {
  */
 export function addToCart(data) {
   return request({
-    url: '/cart',
+    url: '/cart/add',
     method: 'post',
     data
   });
@@ -32,9 +32,12 @@ export function addToCart(data) {
  */
 export function updateCartItem(cartItemId, data) {
   return request({
-    url: `/cart/${cartItemId}`,
+    url: `/cart/update`,
     method: 'put',
-    data
+    data: {
+      ...data,
+      cartId: cartItemId
+    }
   });
 }
 
@@ -45,7 +48,7 @@ export function updateCartItem(cartItemId, data) {
  */
 export function removeFromCart(cartItemId) {
   return request({
-    url: `/cart/${cartItemId}`,
+    url: `/cart/delete/${cartItemId}`,
     method: 'delete'
   });
 }
@@ -63,15 +66,15 @@ export function clearCart() {
 
 /**
  * 选择/取消选择购物车项
- * @param {number} cartItemId - 购物车项ID
- * @param {boolean} selected - 是否选中
+ * @param {Object} params - 参数对象
+ * @param {number} params.cartId - 购物车项ID
+ * @param {number} params.selected - 是否选中 (1 或 0)
  * @returns {Promise}
  */
-export function selectCartItem(cartItemId, selected) {
+export function selectCartItem({ cartId, selected }) {
   return request({
-    url: `/cart/${cartItemId}/select`,
+    url: `/cart/select/${cartId}/${selected}`,
     method: 'put',
-    data: { selected }
   });
 }
 
@@ -82,9 +85,8 @@ export function selectCartItem(cartItemId, selected) {
  */
 export function selectAllCartItems(selected) {
   return request({
-    url: '/cart/select-all',
-    method: 'put',
-    data: { selected }
+    url: `/cart/select/${selected ? 1 : 0}`,
+    method: 'put'
   });
 }
 
@@ -120,5 +122,17 @@ export function batchRemoveCartItems(itemIds) {
     url: '/cart/batch-remove',
     method: 'delete',
     data: { itemIds }
+  });
+}
+
+/**
+ * 验证购物车选中状态
+ * 在结算前调用此接口确认服务器端有选中的商品
+ * @returns {Promise}
+ */
+export function validateCartSelections() {
+  return request({
+    url: '/cart/validate',
+    method: 'get'
   });
 } 

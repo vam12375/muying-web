@@ -40,7 +40,27 @@ export const useCartStore = defineStore('cart', {
     
     // 获取已选择的商品列表
     selectedCartItems: (state) => {
-      return state.cartItems.filter(item => state.selectedItems.includes(item.id));
+      console.log('[CartStore Debug] 计算selectedCartItems');
+      console.log('[CartStore Debug] 当前cartItems:', state.cartItems);
+      console.log('[CartStore Debug] 当前selectedItems:', state.selectedItems);
+      
+      // 如果cartItems为空但存在选中项，尝试从localStorage获取商品详情
+      if (state.cartItems.length === 0 && state.selectedItems.length > 0) {
+        try {
+          console.log('[CartStore Debug] cartItems为空但有选中项，尝试从localStorage获取');
+          const storedItems = localStorage.getItem('checkoutItems');
+          if (storedItems) {
+            return JSON.parse(storedItems);
+          }
+        } catch (e) {
+          console.error('[CartStore Debug] 从localStorage获取商品详情失败:', e);
+        }
+      }
+      
+      // 否则使用常规方式过滤购物车项
+      const items = state.cartItems.filter(item => state.selectedItems.includes(item.id));
+      console.log('[CartStore Debug] 过滤后的结果:', items);
+      return items;
     },
     
     // 获取已选择的商品总数
@@ -54,7 +74,10 @@ export const useCartStore = defineStore('cart', {
     },
     
     // 购物车是否为空
-    isCartEmpty: (state) => state.cartItems.length === 0
+    isCartEmpty: (state) => state.cartItems.length === 0,
+    
+    // 是否有选中的商品
+    hasSelectedItems: (state) => state.selectedItems.length > 0
   },
   
   actions: {
@@ -67,10 +90,17 @@ export const useCartStore = defineStore('cart', {
         
         if (res.code === 200) {
           this.cartItems = res.data.items || [];
-          this.cartTotal = {
-            totalCount: res.data.totalCount || 0,
-            totalPrice: res.data.totalPrice || 0
-          };
+          
+          // 更新购物车总计数据
+          if (res.data.totalCount !== undefined && res.data.totalPrice !== undefined) {
+            this.cartTotal = {
+              totalCount: res.data.totalCount || 0,
+              totalPrice: res.data.totalPrice || 0
+            };
+          } else {
+            // 如果返回数据中没有总计信息，单独调用API获取
+            await this.updateCartTotal();
+          }
           
           // 默认全选
           this.selectedItems = this.cartItems.map(item => item.id);
@@ -88,6 +118,24 @@ export const useCartStore = defineStore('cart', {
       } finally {
         this.loading = false;
       }
+    },
+    
+    // 从localStorage加载选中的商品
+    loadSelectedItemsFromLocalStorage() {
+      try {
+        const storedItems = localStorage.getItem('checkoutItems');
+        if (storedItems) {
+          const items = JSON.parse(storedItems);
+          if (items && items.length > 0) {
+            this.selectedItems = items.map(item => item.id || item.cartId);
+            console.log('[CartStore] 从localStorage加载选中商品:', this.selectedItems);
+            return true;
+          }
+        }
+      } catch (e) {
+        console.error('[CartStore] 从localStorage加载选中商品失败:', e);
+      }
+      return false;
     },
     
     // 添加商品到购物车
@@ -110,6 +158,15 @@ export const useCartStore = defineStore('cart', {
         if (res.code === 200) {
           // 更新购物车数据
           await this.fetchCartItems();
+          
+          // 确保更新购物车总数
+          await this.updateCartTotal();
+          
+          // 如果后端返回了更新后的购物车数量，直接更新状态
+          if (res.data && res.data.totalCount !== undefined) {
+            this.cartTotal.totalCount = res.data.totalCount;
+          }
+          
           ElMessage.success('商品已添加到购物车');
           return true;
         } else {
@@ -255,12 +312,32 @@ export const useCartStore = defineStore('cart', {
           return this.cartTotal;
         } else {
           console.error('获取购物车总计失败:', res.message);
+          // 如果API调用失败，尝试从本地购物车项计算总数
+          this.calculateCartTotalFromItems();
           return this.cartTotal;
         }
       } catch (error) {
         console.error('获取购物车总计失败:', error);
+        // 出错时从本地购物车项计算总数
+        this.calculateCartTotalFromItems();
         return this.cartTotal;
       }
+    },
+    
+    // 从本地购物车项计算总数
+    calculateCartTotalFromItems() {
+      let totalCount = 0;
+      let totalPrice = 0;
+      
+      this.cartItems.forEach(item => {
+        totalCount += item.quantity || 0;
+        totalPrice += (item.price * item.quantity) || 0;
+      });
+      
+      this.cartTotal = {
+        totalCount,
+        totalPrice
+      };
     },
     
     // 选择/取消选择单个商品

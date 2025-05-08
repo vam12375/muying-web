@@ -5,8 +5,12 @@
 
 // 订单状态对应的文本描述
 export const getStatusText = (status) => {
+  if (status === null || typeof status === 'undefined' || status === '') {
+    return '未知状态';
+  }
+
   // 处理数字状态
-  if (!isNaN(status)) {
+  if (!isNaN(status) && status.toString().trim() !== "") {
     const statusNumber = parseInt(status);
     const statusMap = {
       0: '待付款',
@@ -24,11 +28,15 @@ export const getStatusText = (status) => {
   const statusMap = {
     'unpaid': '待付款',
     'PENDING_PAYMENT': '待付款',
+    'pending_payment': '待付款',
     'unshipped': '待发货',
     'PAID': '待发货',
     'PENDING_SHIPMENT': '待发货',
+    'pending_shipment': '待发货',
     'shipped': '待收货',
     'SHIPPED': '待收货',
+    'pending_receive': '待收货',
+    'PENDING_RECEIVE': '待收货',
     'completed': '已完成',
     'COMPLETED': '已完成',
     'cancelled': '已取消',
@@ -39,6 +47,7 @@ export const getStatusText = (status) => {
     'CLOSED': '已关闭',
     // 直接支持中文状态 - 前后端保持一致
     '待付款': '待付款',
+    '待支付': '待付款',
     '待发货': '待发货',
     '待收货': '待收货',
     '已完成': '已完成',
@@ -46,7 +55,6 @@ export const getStatusText = (status) => {
     '退款中': '退款中',
     '已关闭': '已关闭'
   };
-  
   return statusMap[status] || '未知状态';
 };
 
@@ -105,6 +113,7 @@ export const getStatusCode = (status) => {
   
   const codeMap = {
     '待付款': 0,
+    '待支付': 0,
     '待发货': 1,
     '待收货': 2,
     '已完成': 3,
@@ -117,7 +126,10 @@ export const getStatusCode = (status) => {
     'completed': 3,
     'cancelled': 4,
     'refunding': 5,
-    'closed': 6
+    'closed': 6,
+    'pending_payment': 0,
+    'pending_shipment': 1,
+    'pending_receive': 2
   };
   
   return codeMap[status] !== undefined ? codeMap[status] : '';

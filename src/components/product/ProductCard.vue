@@ -1,7 +1,7 @@
 <template>
   <div class="product-card" @click="goToProduct">
     <div class="product-image relative overflow-hidden">
-      <img :src="product.image" :alt="product.name" class="w-full h-full object-cover transition-transform duration-300">
+      <img :src="product.image ? `/products/${product.image.replace(/^.*[\\\/]/, '')}` : ''" :alt="product.name" class="w-full h-full object-cover transition-transform duration-300">
       
       <!-- 标签 -->
       <div class="product-badges absolute top-2 left-2 flex flex-col gap-1">

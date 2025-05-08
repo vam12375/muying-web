@@ -52,7 +52,7 @@
         <div class="order-products">
           <div v-for="(product, index) in order.products" :key="index" class="product-item">
             <div class="product-image">
-              <img :src="product.productImg" :alt="product.productName">
+              <img :src="product.productImg ? `/products/${product.productImg.replace(/^.*[\\\/]/, '')}` : ''" :alt="product.productName">
             </div>
             <div class="product-info">
               <div class="product-name">{{ product.productName }}</div>
@@ -72,7 +72,7 @@
           
           <div class="order-actions">
             <el-button 
-              v-if="order.status === 'pending_payment'" 
+              v-if="['pending_payment', '待支付'].includes(order.status)"
               type="primary" 
               size="small"
               @click="payOrder(order)"
@@ -96,7 +96,7 @@
               评价
             </el-button>
             <el-button 
-              v-if="['pending_payment', 'pending_shipment'].includes(order.status)" 
+              v-if="['pending_payment', '待支付', 'pending_shipment'].includes(order.status)"
               size="small"
               @click="cancelOrder(order)"
             >
@@ -199,6 +199,7 @@ const getStatusText = (status) => {
 const getStatusClass = (status) => {
   const classMap = {
     'pending_payment': 'status-pending',
+    '待支付': 'status-pending',
     'pending_shipment': 'status-processing',
     'pending_receive': 'status-shipped',
     'completed': 'status-delivered',
@@ -318,192 +319,4 @@ const handleCurrentChange = (val) => {
 }
 </script>
 
-<style lang="scss" scoped>
-.order-list-container {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-}
-
-.section-header {
-  margin-bottom: 20px;
-  
-  .section-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #333;
-  }
-}
-
-.order-tabs {
-  margin-bottom: 20px;
-}
-
-.search-bar {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  
-  .search-input {
-    max-width: 300px;
-  }
-}
-
-.loading-container, .empty-container {
-  padding: 40px 0;
-  display: flex;
-  justify-content: center;
-}
-
-.orders-list {
-  .order-item {
-    margin-bottom: 20px;
-    border: 1px solid #ebeef5;
-    border-radius: 8px;
-    overflow: hidden;
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-  
-  .order-header {
-    display: flex;
-    justify-content: space-between;
-    padding: 15px;
-    background-color: #f8f8f8;
-    border-bottom: 1px solid #ebeef5;
-    
-    .order-info {
-      font-size: 14px;
-      color: #606266;
-      
-      .order-date {
-        margin-right: 20px;
-      }
-    }
-    
-    .order-status {
-      font-weight: 500;
-      
-      &.status-pending { color: #e6a23c; }
-      &.status-processing { color: #409eff; }
-      &.status-shipped { color: #67c23a; }
-      &.status-delivered { color: #67c23a; }
-      &.status-cancelled { color: #909399; }
-    }
-  }
-  
-  .order-products {
-    padding: 15px;
-    
-    .product-item {
-      display: flex;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px dashed #ebeef5;
-      
-      &:last-child {
-        border-bottom: none;
-      }
-    }
-    
-    .product-image {
-      width: 80px;
-      height: 80px;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-right: 15px;
-      
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-    }
-    
-    .product-info {
-      flex: 1;
-      
-      .product-name {
-        font-size: 14px;
-        font-weight: 500;
-        margin-bottom: 5px;
-        color: #303133;
-      }
-      
-      .product-attrs {
-        font-size: 12px;
-        color: #909399;
-      }
-    }
-    
-    .product-price, .product-quantity {
-      margin-left: 20px;
-      color: #606266;
-    }
-  }
-  
-  .order-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    background-color: #f8f8f8;
-    border-top: 1px solid #ebeef5;
-    
-    .order-total {
-      font-size: 14px;
-      color: #606266;
-      
-      .price {
-        font-size: 16px;
-        font-weight: 500;
-        color: #ff6699;
-      }
-    }
-    
-    .order-actions {
-      display: flex;
-      gap: 10px;
-    }
-  }
-}
-
-.pagination-container {
-  margin-top: 30px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-@media (max-width: 768px) {
-  .order-footer {
-    flex-direction: column;
-    align-items: flex-start;
-    
-    .order-total {
-      margin-bottom: 15px;
-    }
-    
-    .order-actions {
-      width: 100%;
-      justify-content: space-between;
-      flex-wrap: wrap;
-    }
-  }
-  
-  .product-item {
-    flex-wrap: wrap;
-    
-    .product-info {
-      width: calc(100% - 95px);
-    }
-    
-    .product-price, .product-quantity {
-      margin-left: 95px;
-      margin-top: 10px;
-    }
-  }
-}
-</style>
+<style src="@/styles/user/OrderList.scss" scoped></style>

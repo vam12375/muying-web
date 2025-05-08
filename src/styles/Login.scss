@@ -1,0 +1,221 @@
+.login-page {
+    min-height: 100vh;
+    width: 100%;
+    background-color: #f5f7fa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+  }
+  
+  .login-container {
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  
+  .login-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  .logo-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+  }
+  
+  .logo-img {
+    height: 40px;
+    margin-right: 10px;
+  }
+  
+  .logo-text {
+    font-size: 24px;
+    font-weight: bold;
+    color: #f27c8d;
+  }
+  
+  .login-content {
+    display: flex;
+    min-height: 500px;
+  }
+  
+  .login-left {
+    flex: 1;
+    background-color: #f9f9f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    
+    .login-image {
+      max-width: 100%;
+      max-height: 400px;
+      border-radius: 5px;
+    }
+  }
+  
+  .login-right {
+    flex: 1;
+    padding: 40px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .login-form-container {
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto;
+  }
+  
+  .form-title {
+    font-size: 24px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 30px;
+    text-align: center;
+  }
+  
+  .login-form, .register-form {
+    margin-bottom: 20px;
+  }
+  
+  .login-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    
+    .forgot-password {
+      color: #f27c8d;
+      text-decoration: none;
+      font-size: 14px;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+  
+  .login-button, .register-button {
+    width: 100%;
+    padding: 12px 0;
+    font-size: 16px;
+    margin-top: 10px;
+  }
+  
+  .form-divider {
+    position: relative;
+    text-align: center;
+    margin: 20px 0;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background-color: #e0e0e0;
+    }
+    
+    span {
+      position: relative;
+      background-color: #fff;
+      padding: 0 10px;
+      color: #999;
+      font-size: 14px;
+    }
+  }
+  
+  .social-login {
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .social-button {
+    flex: 1;
+    margin: 0 5px;
+    padding: 10px 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #333;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    i {
+      margin-right: 5px;
+    }
+    
+    &.wechat {
+      &:hover {
+        background-color: #07c160;
+        border-color: #07c160;
+        color: #fff;
+      }
+    }
+    
+    &.qq {
+      &:hover {
+        background-color: #12b7f5;
+        border-color: #12b7f5;
+        color: #fff;
+      }
+    }
+  }
+  
+  .switch-form {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+    
+    a {
+      color: #f27c8d;
+      text-decoration: none;
+      margin-left: 5px;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+  
+  .agreement-item {
+    margin-top: 5px;
+    
+    a {
+      color: #f27c8d;
+      text-decoration: none;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .login-content {
+      flex-direction: column;
+    }
+    
+    .login-left {
+      display: none;
+    }
+    
+    .login-right {
+      padding: 30px 20px;
+    }
+  }
