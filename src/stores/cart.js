@@ -33,7 +33,10 @@ export const useCartStore = defineStore('cart', {
   
   getters: {
     // 获取购物车商品数量
-    cartItemCount: (state) => state.cartTotal.totalCount,
+    cartItemCount: (state) => {
+      console.log('cartItemCount getter被调用，当前值:', state.cartTotal.totalCount);
+      return state.cartTotal.totalCount;
+    },
     
     // 获取购物车商品总价
     cartTotalPrice: (state) => state.cartTotal.totalPrice,
@@ -84,23 +87,18 @@ export const useCartStore = defineStore('cart', {
     // 获取购物车列表
     async fetchCartItems() {
       this.loading = true;
+      console.log('开始获取购物车列表');
       
       try {
         const res = await getCartList();
+        console.log('购物车列表API响应:', res);
         
         if (res.code === 200) {
-          this.cartItems = res.data.items || [];
+          this.cartItems = res.data || [];
+          console.log('购物车列表更新成功，总数:', this.cartItems.length);
           
-          // 更新购物车总计数据
-          if (res.data.totalCount !== undefined && res.data.totalPrice !== undefined) {
-            this.cartTotal = {
-              totalCount: res.data.totalCount || 0,
-              totalPrice: res.data.totalPrice || 0
-            };
-          } else {
-            // 如果返回数据中没有总计信息，单独调用API获取
-            await this.updateCartTotal();
-          }
+          // 总是调用updateCartTotal来获取最新数量
+          await this.updateCartTotal();
           
           // 默认全选
           this.selectedItems = this.cartItems.map(item => item.id);
@@ -146,6 +144,7 @@ export const useCartStore = defineStore('cart', {
       }
       
       this.addLoading = true;
+      console.log('开始添加商品到购物车:', product.id, '数量:', quantity);
       
       try {
         const cartItem = {
@@ -154,6 +153,7 @@ export const useCartStore = defineStore('cart', {
         };
         
         const res = await addToCart(cartItem);
+        console.log('添加购物车API响应:', res);
         
         if (res.code === 200) {
           // 更新购物车数据
@@ -165,8 +165,10 @@ export const useCartStore = defineStore('cart', {
           // 如果后端返回了更新后的购物车数量，直接更新状态
           if (res.data && res.data.totalCount !== undefined) {
             this.cartTotal.totalCount = res.data.totalCount;
+            console.log('使用API返回的购物车数量更新:', this.cartTotal.totalCount);
           }
           
+          console.log('添加商品后，当前购物车总数:', this.cartTotal.totalCount);
           ElMessage.success('商品已添加到购物车');
           return true;
         } else {
@@ -305,10 +307,26 @@ export const useCartStore = defineStore('cart', {
         const res = await getCartTotal();
         
         if (res.code === 200) {
-          this.cartTotal = {
-            totalCount: res.data.totalCount || 0,
-            totalPrice: res.data.totalPrice || 0
-          };
+          // 处理后端返回值可能为整数的情况
+          if (typeof res.data === 'number') {
+            // 如果返回值是整数，说明是购物车总数量
+            console.log('后端返回的购物车数量:', res.data);
+            this.cartTotal = {
+              totalCount: res.data || 0,
+              totalPrice: this.cartTotal.totalPrice || 0
+            };
+          } else if (res.data && typeof res.data === 'object') {
+            // 如果返回的是对象，包含totalCount和totalPrice
+            this.cartTotal = {
+              totalCount: res.data.totalCount || 0,
+              totalPrice: res.data.totalPrice || 0
+            };
+          } else {
+            // 返回格式不符合预期，使用默认值
+            console.warn('购物车总计返回格式异常:', res.data);
+            this.calculateCartTotalFromItems();
+          }
+          console.log('更新后的购物车数量:', this.cartTotal.totalCount);
           return this.cartTotal;
         } else {
           console.error('获取购物车总计失败:', res.message);
@@ -404,6 +422,29 @@ export const useCartStore = defineStore('cart', {
         return false;
       } finally {
         this.loading = false;
+      }
+    },
+    
+    // 添加刷新购物车数量的独立方法
+    async refreshCartCount() {
+      console.log('手动刷新购物车数量');
+      // 只刷新购物车数量，不获取完整列表
+      try {
+        await this.updateCartTotal();
+        console.log('购物车数量刷新完成:', this.cartTotal.totalCount);
+        return this.cartTotal.totalCount;
+      } catch (error) {
+        console.error('刷新购物车数量失败:', error);
+        return this.cartTotal.totalCount;
+      }
+    },
+    
+    // 初始化购物车
+    async initCart() {
+      console.log('初始化购物车');
+      if (this.cartTotal.totalCount === 0) {
+        // 只获取购物车总数，减少不必要的数据加载
+        await this.refreshCartCount();
       }
     }
   }

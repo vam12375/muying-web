@@ -359,6 +359,21 @@
 .summary-value {
   color: #333;
   font-weight: 600;
+  
+  &.discount {
+    color: var(--pink-color, #ff85a2);
+  }
+  
+  &.not-used {
+    color: #999;
+    font-weight: normal;
+    font-style: italic;
+  }
+  
+  &.total {
+    color: var(--pink-color, #ff85a2);
+    font-size: 24px;
+  }
 }
 
 .summary-total {
@@ -680,4 +695,307 @@
 .coupon-tabs {
   padding: 0 16px;
   border-bottom: 1px solid #ebeef5;
+}
+
+/* 双列布局 */
+.checkout-layout {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.checkout-main {
+  flex: 1;
+  min-width: 0; /* 防止内容溢出 */
+}
+
+.checkout-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+}
+
+/* 订单摘要卡片 */
+.order-summary-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 20px;
+}
+
+.summary-header {
+  padding: 16px 20px;
+  background: var(--pink-color, #ff85a2);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  
+  h3 {
+    color: #fff;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.summary-body {
+  padding: 20px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.summary-label {
+  color: #606266;
+}
+
+.summary-value {
+  color: #333;
+  font-weight: 600;
+  
+  &.discount {
+    color: var(--pink-color, #ff85a2);
+  }
+  
+  &.not-used {
+    color: #999;
+    font-weight: normal;
+    font-style: italic;
+  }
+  
+  &.total {
+    color: var(--pink-color, #ff85a2);
+    font-size: 24px;
+  }
+}
+
+.summary-divider {
+  height: 1px;
+  background: #ebeef5;
+  margin: 16px 0;
+}
+
+.summary-total {
+  font-size: 16px;
+  
+  .summary-label {
+    color: #333;
+    font-weight: 600;
+  }
+}
+
+.summary-address {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px dashed #ebeef5;
+}
+
+.summary-address-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.summary-address-content {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.address-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.address-phone {
+  margin: 4px 0;
+}
+
+.address-detail {
+  word-break: break-all;
+}
+
+.submit-btn {
+  width: 100%;
+  margin-top: 20px;
+  background: var(--pink-color, #ff85a2);
+  border-color: var(--pink-color, #ff85a2);
+  
+  &:hover, &:focus {
+    background: var(--pink-dark, #e56a87);
+    border-color: var(--pink-dark, #e56a87);
+  }
+  
+  &:active {
+    background: var(--pink-dark, #e56a87);
+    border-color: var(--pink-dark, #e56a87);
+  }
+}
+
+.back-to-cart {
+  color: #606266;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  cursor: pointer;
+  justify-content: center;
+  
+  &:hover {
+    color: var(--pink-color, #ff85a2);
+  }
+}
+
+/* 响应式调整 */
+.mobile-only {
+  display: none;
+}
+
+.desktop-only {
+  display: flex;
+}
+
+@media (max-width: 992px) {
+  .checkout-layout {
+    flex-direction: column;
+  }
+  
+  .checkout-sidebar {
+    width: 100%;
+  }
+  
+  .order-summary-card {
+    position: static;
+  }
+  
+  .mobile-only {
+    display: flex;
+  }
+  
+  .desktop-only {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .address-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .shipping-options, .payment-options {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .option-card {
+    width: 100%;
+  }
+  
+  .coupon-left {
+    min-width: 80px;
+    padding: 12px;
+  }
+}
+
+// 更新积分抵扣相关的样式
+.points-section {
+  padding: 10px;
+  
+  .points-info {
+    margin-bottom: 15px;
+    
+    .points-available {
+      font-size: 16px;
+      margin-bottom: 5px;
+      
+      .points-value {
+        color: #f60;
+        font-weight: bold;
+        margin: 0 5px;
+      }
+    }
+    
+    .points-rule {
+      color: #666;
+      font-size: 14px;
+    }
+  }
+  
+  .points-use-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    
+    .use-points-toggle {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      
+      .toggle-label {
+        margin-right: 15px;
+        font-size: 14px;
+      }
+    }
+    
+    .points-input-area {
+      display: flex;
+      flex-direction: column;
+      margin-top: 15px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 15px;
+      
+      .points-input-label {
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+      
+      .points-info-tip {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #666;
+        
+        .highlight {
+          color: #f60;
+          font-weight: bold;
+        }
+      }
+      
+      .points-discount {
+        margin-top: 15px;
+        font-size: 15px;
+        color: #333;
+        padding-top: 10px;
+        border-top: 1px dashed #ddd;
+        
+        .discount-value {
+          color: #f60;
+          font-weight: bold;
+          font-size: 18px;
+        }
+      }
+    }
+  }
+  
+  .points-summary {
+    margin-top: 15px;
+    padding: 10px 15px;
+    background-color: #fff8f0;
+    border-radius: 8px;
+    border: 1px solid #ffe7d0;
+    
+    .summary-text {
+      color: #333;
+      
+      .highlight {
+        color: #f60;
+        font-weight: bold;
+      }
+    }
+  }
 }

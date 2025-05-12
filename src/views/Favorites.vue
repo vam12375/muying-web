@@ -1,8 +1,14 @@
 <template>
   <div class="favorites-page">
-    <!-- 顶部横幅 - 现代风格渐变背景 -->
+    <!-- 顶部横幅 - 优化母婴主题设计 -->
     <section class="hero-section">
       <div class="hero-content">
+        <div class="floating-elements">
+          <div class="floating-element baby" style="left: 5%; top: 20%;"></div>
+          <div class="floating-element bottle" style="right: 12%; top: 35%;"></div>
+          <div class="floating-element pacifier" style="left: 20%; bottom: 25%;"></div>
+          <div class="floating-element toy" style="right: 25%; bottom: 20%;"></div>
+        </div>
         <div class="container mx-auto py-10 px-4 relative z-10">
           <motion-div
             :initial="{ opacity: 0, y: 20 }"
@@ -28,7 +34,7 @@
         :animate="{ opacity: 1, y: 0 }"
         :transition="{ duration: 0.5, delay: 0.2 }"
       >
-        <div class="filter-container bg-white rounded-2xl shadow-lg p-6 mb-6 backdrop-blur-sm bg-opacity-95 border border-gray-100">
+        <div class="filter-container glass-effect rounded-2xl shadow-lg p-6 mb-6 backdrop-blur-sm bg-opacity-85 border border-gray-100">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-center">
               <el-radio-group v-model="viewType" size="large" class="view-toggle-group">
@@ -104,10 +110,10 @@
           <!-- 加载中 - 优化加载状态 -->
           <div v-if="loading" class="loading-container">
             <div class="loading-animation py-16">
-              <div class="spinner-container">
-                <div class="spinner"></div>
+              <div class="baby-loading-animation">
+                <div class="baby-face"></div>
+                <div class="loading-text">正在加载您的收藏商品...</div>
               </div>
-              <p class="text-gray-500 mt-6">正在加载您的收藏商品...</p>
             </div>
           </div>
           
@@ -126,8 +132,10 @@
               :style="{ animationDelay: `${index * 0.05}s` }"
             >
               <div 
-                class="product-card-inner relative rounded-xl overflow-hidden transition-all duration-300"
+                class="product-card-inner relative rounded-xl overflow-hidden transition-all duration-300 tilt-card"
                 :class="{ 'selected-card': item.selected }"
+                @mousemove="handleCardMouseMove"
+                @mouseleave="handleCardMouseLeave"
               >
                 <!-- 选择框 -->
                 <div class="select-overlay absolute top-3 left-3 z-30" @click.stop="handleItemSelect(item)">
@@ -195,7 +203,7 @@
                       size="small" 
                       type="primary" 
                       class="cart-btn"
-                      @click="handleAddToCart(item)"
+                      @click.stop="handleAddToCart(item)"
                     >
                       <el-icon><ShoppingCart /></el-icon>
                     </el-button>
@@ -279,10 +287,10 @@
                     </div>
                     
                     <div class="flex gap-2">
-                      <el-button type="primary" size="small" @click="handleAddToCart(item)" class="cart-btn-list">
+                      <el-button type="primary" size="small" @click.stop="handleAddToCart(item)" class="cart-btn-list">
                         <el-icon class="mr-1"><ShoppingCart /></el-icon>加入购物车
                       </el-button>
-                      <el-button type="danger" size="small" @click="handleRemoveFavorite(item)" class="delete-btn-list">
+                      <el-button type="danger" size="small" @click.stop="handleRemoveFavorite(item)" class="delete-btn-list">
                         <el-icon><Delete /></el-icon>
                       </el-button>
                     </div>
@@ -380,6 +388,36 @@ const selectAll = ref(false);
 watch(viewType, (newVal) => {
   localStorage.setItem('favorites_view_type', newVal);
 });
+
+// 3D倾斜卡片效果
+const handleCardMouseMove = (event) => {
+  const card = event.currentTarget;
+  const rect = card.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  
+  const rotateX = (y - centerY) / 10;
+  const rotateY = (centerX - x) / 10;
+  
+  card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05, 1.05, 1.05)`;
+  card.style.transition = 'transform 0.1s ease';
+  
+  // 添加阴影效果增强3D感
+  card.style.boxShadow = `
+    0 5px 15px rgba(0,0,0,0.1),
+    ${(x - centerX) / 15}px ${(y - centerY) / 15}px 15px rgba(0,0,0,0.1)
+  `;
+};
+
+const handleCardMouseLeave = (event) => {
+  const card = event.currentTarget;
+  card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+  card.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.04)';
+  card.style.transition = 'transform 0.5s ease, box-shadow 0.5s ease';
+};
 
 // 获取收藏列表
 const fetchFavorites = async () => {

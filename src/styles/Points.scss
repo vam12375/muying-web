@@ -122,3 +122,992 @@
   .stat-card:hover {
     transform: translateY(-5px);
   }
+
+/* 积分商城页面样式 */
+.points-mall-page {
+  min-height: 100vh;
+  background-image: linear-gradient(to bottom, #f0f5ff, #ffffff);
+  padding: 2rem 1rem;
+  
+  @media (min-width: 768px) {
+    padding: 2rem;
+  }
+  
+  /* 页面加载状态 */
+  .page-loading {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* 积分信息卡片 */
+  .points-info-card {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto 2rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+      transform: translateY(-5px);
+    }
+    
+    .points-info-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 160px;
+      background: linear-gradient(to right, var(--el-color-primary), var(--el-color-primary-light-3));
+      z-index: 1;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+      }
+      
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -30px;
+        left: 20%;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+      }
+    }
+    
+    .points-info-content {
+      position: relative;
+      z-index: 2;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      color: white;
+      
+      @media (min-width: 768px) {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .user-points-wrapper {
+        margin-bottom: 1.5rem;
+        
+        @media (min-width: 768px) {
+          margin-bottom: 0;
+        }
+        
+        .points-label {
+          font-size: 1rem;
+          opacity: 0.9;
+          margin-bottom: 0.25rem;
+        }
+        
+        .points-amount {
+          font-size: 3rem;
+          font-weight: 700;
+          line-height: 1.1;
+          position: relative;
+          display: inline-block;
+          
+          &::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 30%;
+            height: 3px;
+            background-color: white;
+            border-radius: 2px;
+          }
+        }
+        
+        .points-trend {
+          margin-top: 0.5rem;
+          font-size: 0.875rem;
+          opacity: 0.8;
+          
+          span {
+            font-weight: 600;
+          }
+        }
+      }
+      
+      .membership-info {
+        .member-badge {
+          display: flex;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(10px);
+          border-radius: 12px;
+          padding: 1rem;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          
+          &.银牌会员 {
+            border-color: rgba(192, 192, 192, 0.5);
+            
+            .member-icon {
+              background: linear-gradient(135deg, #c0c0c0, #e6e6e6);
+            }
+          }
+          
+          &.金牌会员 {
+            border-color: rgba(255, 215, 0, 0.5);
+            
+            .member-icon {
+              background: linear-gradient(135deg, #ffd700, #ffecb3);
+            }
+          }
+          
+          &.钻石会员 {
+            border-color: rgba(185, 242, 255, 0.5);
+            
+            .member-icon {
+              background: linear-gradient(135deg, #b9f2ff, #e6f9ff);
+            }
+          }
+          
+          &.至尊会员 {
+            border-color: rgba(255, 75, 75, 0.5);
+            
+            .member-icon {
+              background: linear-gradient(135deg, #ff4b4b, #ffb3b3);
+            }
+          }
+          
+          .member-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+          }
+          
+          .member-details {
+            .member-level {
+              font-weight: 600;
+              font-size: 1.25rem;
+              margin-bottom: 0.25rem;
+            }
+            
+            .member-progress {
+              .progress-bar {
+                width: 100%;
+                height: 6px;
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 3px;
+                overflow: hidden;
+                margin-bottom: 0.25rem;
+                
+                .progress-fill {
+                  height: 100%;
+                  background: white;
+                  border-radius: 3px;
+                  transition: width 1s ease-out;
+                }
+              }
+              
+              .progress-text {
+                font-size: 0.75rem;
+                opacity: 0.8;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    .points-actions {
+      position: relative;
+      z-index: 2;
+      padding: 1rem 2rem 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+      
+      @media (min-width: 768px) {
+        justify-content: flex-start;
+      }
+    }
+  }
+  
+  /* 积分概览卡片 */
+  .points-overview {
+    max-width: 1200px;
+    margin: 0 auto 2rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1rem;
+    
+    @media (min-width: 576px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    @media (min-width: 992px) {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .overview-item {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border-radius: 12px;
+      background: #f9fafc;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+      }
+      
+      .overview-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.5rem;
+        
+        &.earn {
+          background: rgba(var(--el-color-success-rgb), 0.1);
+          color: var(--el-color-success);
+        }
+        
+        &.spend {
+          background: rgba(var(--el-color-warning-rgb), 0.1);
+          color: var(--el-color-warning);
+        }
+        
+        &.sign {
+          background: rgba(var(--el-color-primary-rgb), 0.1);
+          color: var(--el-color-primary);
+        }
+      }
+      
+      .overview-data {
+        .overview-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          line-height: 1.2;
+        }
+        
+        .overview-label {
+          font-size: 0.875rem;
+          color: #909399;
+        }
+      }
+    }
+    
+    .sign-in-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      
+      @media (min-width: 576px) {
+        grid-column: span 2;
+      }
+      
+      @media (min-width: 992px) {
+        grid-column: unset;
+      }
+    }
+  }
+  
+  /* 内容区域 */
+  .content-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    
+    .section-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      
+      @media (min-width: 768px) {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+      
+      h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        
+        i {
+          margin-right: 0.5rem;
+          font-size: 1.25rem;
+          color: var(--el-color-primary);
+        }
+      }
+      
+      .filter-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+      }
+    }
+    
+    /* 积分商城部分 */
+    .points-mall-section {
+      padding-bottom: 1.5rem;
+      
+      .view-mode-tabs {
+        margin-bottom: 1rem;
+        
+        :deep(.el-tabs__header) {
+          margin-bottom: 1.5rem;
+        }
+      }
+      
+      /* 网格视图 */
+      .products-grid {
+        display: grid;
+        grid-template-columns: repeat(1, 1fr);
+        gap: 1rem;
+        padding: 0 1.5rem;
+        
+        @media (min-width: 576px) {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        
+        @media (min-width: 992px) {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        
+        @media (min-width: 1200px) {
+          grid-template-columns: repeat(4, 1fr);
+        }
+        
+        .product-card {
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+          background: white;
+          border: 1px solid #f0f0f0;
+          position: relative;
+          
+          &:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.07);
+            
+            .product-image img {
+              transform: scale(1.05);
+            }
+          }
+          
+          &.disabled {
+            opacity: 0.7;
+            
+            &:hover {
+              transform: none;
+            }
+          }
+          
+          .product-image {
+            position: relative;
+            height: 200px;
+            overflow: hidden;
+            
+            img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              transition: transform 0.5s ease;
+            }
+            
+            .product-badges {
+              position: absolute;
+              top: 0.75rem;
+              left: 0.75rem;
+              display: flex;
+              flex-direction: column;
+              gap: 0.5rem;
+              
+              .badge {
+                font-size: 0.75rem;
+                font-weight: 600;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                text-transform: uppercase;
+                
+                &.new {
+                  background: var(--el-color-primary);
+                  color: white;
+                }
+                
+                &.hot {
+                  background: var(--el-color-danger);
+                  color: white;
+                }
+                
+                &.sold-out {
+                  background: #909399;
+                  color: white;
+                }
+              }
+            }
+          }
+          
+          .product-info {
+            padding: 1rem;
+            
+            .product-name {
+              font-size: 1rem;
+              font-weight: 600;
+              margin: 0 0 0.5rem;
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              height: 2.5rem;
+            }
+            
+            .product-meta {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 0.75rem;
+              font-size: 0.75rem;
+              color: #909399;
+              
+              .product-stock {
+                margin-right: 0.5rem;
+              }
+              
+              .product-rating {
+                color: #ffc107;
+              }
+            }
+            
+            .product-footer {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              
+              .product-points {
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: var(--el-color-primary);
+                
+                span {
+                  font-size: 0.875rem;
+                  font-weight: normal;
+                  margin-left: 0.25rem;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      /* 列表视图 */
+      .products-list {
+        padding: 0 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        
+        .product-list-item {
+          display: flex;
+          flex-direction: column;
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+          overflow: hidden;
+          transition: all 0.3s ease;
+          border: 1px solid #f0f0f0;
+          
+          @media (min-width: 768px) {
+            flex-direction: row;
+          }
+          
+          &:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.07);
+          }
+          
+          &.disabled {
+            opacity: 0.7;
+            
+            &:hover {
+              transform: none;
+            }
+          }
+          
+          .product-list-image {
+            position: relative;
+            width: 100%;
+            min-height: 150px;
+            
+            @media (min-width: 768px) {
+              width: 180px;
+              min-height: auto;
+            }
+            
+            img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              
+              @media (min-width: 768px) {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+              }
+            }
+            
+            .product-badges {
+              position: absolute;
+              top: 0.75rem;
+              left: 0.75rem;
+              display: flex;
+              gap: 0.5rem;
+              
+              .badge {
+                font-size: 0.75rem;
+                font-weight: 600;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                text-transform: uppercase;
+                
+                &.new {
+                  background: var(--el-color-primary);
+                  color: white;
+                }
+                
+                &.hot {
+                  background: var(--el-color-danger);
+                  color: white;
+                }
+              }
+            }
+          }
+          
+          .product-list-info {
+            flex: 1;
+            padding: 1rem;
+            
+            .product-name {
+              font-size: 1.125rem;
+              font-weight: 600;
+              margin: 0 0 0.5rem;
+            }
+            
+            .product-description {
+              color: #606266;
+              font-size: 0.875rem;
+              margin-bottom: 0.5rem;
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              
+              @media (min-width: 768px) {
+                -webkit-line-clamp: 3;
+              }
+            }
+            
+            .product-meta {
+              display: flex;
+              align-items: center;
+              gap: 1rem;
+              font-size: 0.75rem;
+              color: #909399;
+              
+              .product-stock {
+                &.out {
+                  color: var(--el-color-danger);
+                }
+              }
+              
+              .product-rating {
+                color: #ffc107;
+              }
+            }
+          }
+          
+          .product-list-action {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+            align-items: center;
+            border-top: 1px solid #f0f0f0;
+            
+            @media (min-width: 768px) {
+              border-top: none;
+              border-left: 1px solid #f0f0f0;
+              justify-content: center;
+              min-width: 160px;
+            }
+            
+            .product-points {
+              font-size: 1.25rem;
+              font-weight: 700;
+              color: var(--el-color-primary);
+              
+              span {
+                font-size: 0.875rem;
+                font-weight: normal;
+                margin-left: 0.25rem;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    /* 积分记录部分 */
+    .points-records-section {
+      padding-bottom: 1.5rem;
+      
+      .points-table {
+        margin: 0 1.5rem;
+        
+        .record-type {
+          display: inline-block;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          
+          &.earn {
+            background: rgba(var(--el-color-success-rgb), 0.1);
+            color: var(--el-color-success);
+          }
+          
+          &.use {
+            background: rgba(var(--el-color-warning-rgb), 0.1);
+            color: var(--el-color-warning);
+          }
+        }
+        
+        .record-description {
+          color: #606266;
+        }
+        
+        .record-points {
+          font-weight: 600;
+          
+          &.earn {
+            color: var(--el-color-success);
+          }
+          
+          &.use {
+            color: var(--el-color-danger);
+          }
+        }
+        
+        .record-balance {
+          font-weight: 600;
+          color: #606266;
+        }
+      }
+    }
+    
+    /* 积分规则部分 */
+    .points-rules-section {
+      padding: 0 1.5rem 1.5rem;
+      
+      .rules-container {
+        margin-top: 1rem;
+        
+        .rule-content {
+          padding: 1rem 0;
+          
+          .rule-item {
+            display: flex;
+            margin-bottom: 1.5rem;
+            
+            &:last-child {
+              margin-bottom: 0;
+            }
+            
+            .rule-icon {
+              width: 2.5rem;
+              height: 2.5rem;
+              background: rgba(var(--el-color-primary-rgb), 0.1);
+              color: var(--el-color-primary);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: 12px;
+              margin-right: 1rem;
+              font-size: 1.25rem;
+            }
+            
+            .rule-detail {
+              .rule-title {
+                font-weight: 600;
+                font-size: 1.125rem;
+                margin-bottom: 0.25rem;
+              }
+              
+              .rule-description {
+                color: #606266;
+                font-size: 0.875rem;
+              }
+            }
+          }
+          
+          .rule-text {
+            color: #606266;
+            
+            p {
+              margin-bottom: 0.75rem;
+              
+              &:last-child {
+                margin-bottom: 0;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  /* 分页容器 */
+  .pagination-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+  }
+  
+  /* 兑换确认对话框 */
+  :deep(.el-dialog) {
+    border-radius: 16px;
+    overflow: hidden;
+    
+    .el-dialog__header {
+      margin: 0;
+      padding: 1.25rem 1.5rem;
+      background: #f9fafc;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .el-dialog__body {
+      padding: 1.5rem;
+    }
+    
+    .exchange-dialog-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      
+      .product-preview {
+        width: 120px;
+        height: 120px;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+      
+      .product-info {
+        margin-bottom: 1rem;
+        
+        h3 {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin: 0 0 0.75rem;
+        }
+        
+        .exchange-points, .user-points, .balance-points {
+          margin-bottom: 0.5rem;
+          color: #606266;
+          
+          span {
+            font-weight: 600;
+            color: var(--el-color-primary);
+          }
+        }
+        
+        .balance-points span {
+          color: var(--el-color-success);
+        }
+      }
+      
+      .exchange-warning {
+        color: var(--el-color-danger);
+        font-size: 0.875rem;
+        background: rgba(var(--el-color-danger-rgb), 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+      }
+    }
+  }
+  
+  /* 兑换成功动画 */
+  .exchange-success-animation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+    
+    .success-content {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      
+      .success-icon {
+        width: 5rem;
+        height: 5rem;
+        margin: 0 auto 1rem;
+        background: var(--el-color-success);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        
+        i {
+          animation: checkmark 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+      }
+      
+      .success-text {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--el-color-success);
+      }
+    }
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes checkmark {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 产品过渡动画 */
+.product-item-enter-active,
+.product-item-leave-active {
+  transition: all 0.5s ease;
+}
+
+.product-item-enter-from {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.product-item-leave-to {
+  opacity: 0;
+  transform: translateY(-30px);
+}
+
+/* 针对连续签到样式 */
+.sign-day-item {
+  position: relative;
+  width: 40px;
+  
+  .sign-day-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f5f7fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    color: #909399;
+    transition: all 0.3s ease;
+  }
+  
+  &.signed {
+    .sign-day-circle {
+      background: var(--el-color-primary);
+      color: white;
+    }
+  }
+}

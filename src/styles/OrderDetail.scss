@@ -1,0 +1,425 @@
+.order-detail-page {
+  padding: 20px 0;
+  
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 500;
+      color: #333;
+    }
+    
+    .back-link {
+      display: flex;
+      align-items: center;
+      color: #409EFF;
+      cursor: pointer;
+      font-size: 14px;
+      
+      &:hover {
+        color: #79bbff;
+      }
+      
+      .back-icon {
+        margin-right: 5px;
+      }
+    }
+  }
+  
+  .status-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    
+    .card-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      
+      .status-tag {
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        
+        &.status-pending-payment {
+          background-color: #e6a23c;
+          color: white;
+        }
+        
+        &.status-pending-shipment {
+          background-color: #409EFF;
+          color: white;
+        }
+        
+        &.status-pending-receive {
+          background-color: #67C23A;
+          color: white;
+        }
+        
+        &.status-completed {
+          background-color: #909399;
+          color: white;
+        }
+        
+        &.status-cancelled {
+          background-color: #F56C6C;
+          color: white;
+        }
+      }
+    }
+    
+    .order-progress {
+      padding: 30px 20px;
+      
+      .progress-track {
+        position: relative;
+        height: 4px;
+        background-color: #f0f0f0;
+        margin: 40px 0;
+        border-radius: 2px;
+        
+        .progress-steps {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background-color: #67C23A;
+          border-radius: 2px;
+          
+          &.progress-step-1 {
+            width: 25%;
+          }
+          
+          &.progress-step-2 {
+            width: 50%;
+          }
+          
+          &.progress-step-3 {
+            width: 75%;
+          }
+          
+          &.progress-step-4 {
+            width: 100%;
+          }
+        }
+        
+        .progress-milestones {
+          position: absolute;
+          top: -8px;
+          left: 0;
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          
+          .milestone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            
+            .milestone-dot {
+              width: 20px;
+              height: 20px;
+              border-radius: 50%;
+              background-color: #f0f0f0;
+              border: 2px solid #dcdfe6;
+              margin-bottom: 8px;
+            }
+            
+            .milestone-label {
+              font-size: 12px;
+              color: #909399;
+              white-space: nowrap;
+            }
+            
+            &.active {
+              .milestone-dot {
+                background-color: #67C23A;
+                border-color: #67C23A;
+              }
+              
+              .milestone-label {
+                color: #67C23A;
+                font-weight: 500;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  .detail-section {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    
+    .section-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+    }
+    
+    .section-content {
+      padding: 20px;
+    }
+  }
+  
+  .order-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      
+      .info-label {
+        font-size: 13px;
+        color: #909399;
+        margin-bottom: 5px;
+      }
+      
+      .info-value {
+        font-size: 14px;
+        color: #333;
+      }
+    }
+  }
+  
+  .product-list {
+    margin-bottom: 20px;
+    
+    .product-item {
+      display: flex;
+      padding: 15px 0;
+      border-bottom: 1px solid #f0f0f0;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .product-image {
+        width: 80px;
+        height: 80px;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-right: 15px;
+        flex-shrink: 0;
+        
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+      
+      .product-info {
+        flex-grow: 1;
+        
+        .product-name {
+          font-size: 14px;
+          font-weight: 500;
+          color: #333;
+          margin-bottom: 5px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        
+        .product-specs {
+          font-size: 12px;
+          color: #909399;
+          margin-bottom: 10px;
+        }
+      }
+      
+      .product-price {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        min-width: 100px;
+        
+        .price {
+          font-size: 14px;
+          color: #F56C6C;
+          margin-bottom: 5px;
+        }
+        
+        .quantity {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+    }
+  }
+  
+  .order-amount {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    
+    .amount-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      
+      .amount-label {
+        font-size: 13px;
+        color: #909399;
+        margin-right: 10px;
+      }
+      
+      .amount-value {
+        font-size: 14px;
+        color: #333;
+        min-width: 80px;
+        text-align: right;
+      }
+      
+      &.total {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #f0f0f0;
+        
+        .amount-label {
+          font-size: 14px;
+          font-weight: 500;
+          color: #333;
+        }
+        
+        .amount-value {
+          font-size: 18px;
+          font-weight: 500;
+          color: #F56C6C;
+        }
+      }
+    }
+  }
+  
+  .order-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+    gap: 10px;
+  }
+  
+  // 物流信息样式
+  .logistics-section {
+    margin-bottom: 20px;
+    
+    .logistics-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      
+      .refresh-button {
+        font-size: 13px;
+      }
+    }
+    
+    .logistics-info {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+      
+      .info-item {
+        display: flex;
+        flex-direction: column;
+        
+        .info-label {
+          font-size: 13px;
+          color: #909399;
+          margin-bottom: 5px;
+        }
+        
+        .info-value {
+          font-size: 14px;
+          color: #333;
+        }
+      }
+    }
+    
+    .logistics-status {
+      padding: 15px;
+      background-color: #f8f8f8;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      
+      .status-text {
+        display: flex;
+        align-items: center;
+        
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background-color: #67C23A;
+          margin-right: 8px;
+        }
+        
+        .status-info {
+          font-size: 14px;
+          font-weight: 500;
+          color: #333;
+        }
+      }
+    }
+    
+    .logistics-tracks {
+      margin-top: 20px;
+      
+      .track-title {
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        
+        .refresh-btn {
+          margin-left: 10px;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+  
+  // 响应式调整
+  @media (max-width: 768px) {
+    .order-info {
+      grid-template-columns: 1fr;
+    }
+    
+    .logistics-info {
+      grid-template-columns: 1fr !important;
+    }
+  }
+}
+
+// 催发货弹窗样式
+.expedite-dialog {
+  .expedite-form {
+    .form-tips {
+      font-size: 12px;
+      color: #909399;
+      margin-bottom: 15px;
+      padding: 10px;
+      background-color: #f8f8f8;
+      border-radius: 4px;
+    }
+  }
+} 

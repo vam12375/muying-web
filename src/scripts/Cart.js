@@ -340,8 +340,7 @@ export default function useCart() {
       updateItemSubtotal(item);
       
       // 发送请求到服务器
-      const response = await updateCartItem({
-        cartId: item.cartId,
+      const response = await updateCartItem(item.cartId, {
         quantity: quantity
       });
       

@@ -40,7 +40,7 @@ onUnmounted(() => {
     <div class="main-content">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
-          <component :is="Component" />
+          <component :is="Component" :key="$route.path + ($route.params.id || '')" />
         </transition>
       </router-view>
     </div>

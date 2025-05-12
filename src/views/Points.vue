@@ -1,428 +1,496 @@
 <template>
-  <div class="point-page min-h-screen bg-gradient-to-b from-blue-50 to-white">
-    <div class="container mx-auto py-10 px-4">
+  <div class="points-mall-page">
+    <!-- 页面加载状态 -->
+    <div v-if="loading" class="page-loading">
+      <el-skeleton :rows="10" animated />
+    </div>
+    
+    <template v-else>
+      <!-- 顶部积分信息卡片 -->
       <motion-div
         :initial="{ opacity: 0, y: -20 }"
         :animate="{ opacity: 1, y: 0 }"
         :transition="{ duration: 0.5 }"
-        class="mb-8"
       >
-        <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <div class="text-primary-600">
-            <i class="el-icon-medal text-2xl"></i>
+        <div class="points-info-card">
+          <div class="points-info-bg"></div>
+          <div class="points-info-content">
+            <div class="user-points-wrapper">
+              <div class="points-label">我的积分</div>
+              <div class="points-amount" ref="pointsValueRef">{{ animatedPoints }}</div>
+              <div class="points-trend" v-if="pointsThisMonth > 0">
+                本月 <span>+{{ pointsThisMonth }}</span>
+              </div>
+            </div>
+            
+            <div class="membership-info">
+              <div class="member-badge" :class="userLevel">
+                <div class="member-icon">
+                  <i :class="getMemberIcon"></i>
+                </div>
+                <div class="member-details">
+                  <div class="member-level">{{ userLevel }}</div>
+                  <div class="member-progress">
+                    <div class="progress-bar">
+                      <div class="progress-fill" :style="{width: `${levelProgress}%`}"></div>
+                    </div>
+                    <div class="progress-text">
+                      距离 {{ getNextLevel }} 还需 {{ pointsToNextLevel }} 积分
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          我的积分
-        </h1>
-        <p class="text-gray-500 mt-2">
-          查看您的积分明细和使用记录
-        </p>
+          
+          <div class="points-actions">
+            <el-button type="primary" @click="showSection('mall')">
+              <i class="el-icon-shopping-cart"></i> 积分商城
+            </el-button>
+            <el-button @click="showSection('records')">
+              <i class="el-icon-document"></i> 积分明细
+            </el-button>
+            <el-button @click="showSection('rules')">
+              <i class="el-icon-info"></i> 积分规则
+            </el-button>
+          </div>
+        </div>
       </motion-div>
       
-      <!-- 积分卡片 - 全新设计 -->
-      <div class="points-card bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden mb-8 transition-all duration-300 hover:shadow-lg">
-        <div class="bg-gradient-to-r from-primary-600 to-primary-700 p-8 text-white relative overflow-hidden">
-          <!-- 背景装饰 -->
-          <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
-          <div class="absolute bottom-0 left-0 w-40 h-40 bg-white opacity-5 rounded-full -ml-16 -mb-16"></div>
-          
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center relative z-10">
-            <!-- 积分展示 -->
-            <div class="mb-6 md:mb-0">
-              <div class="text-white/80 font-medium mb-2">当前积分</div>
-              <div class="flex items-baseline">
-                <div class="text-5xl font-bold mr-2">{{ userPoints }}</div>
-                <div v-if="pointsThisMonth > 0" class="text-white/80 text-sm">
-                  本月 <span class="text-white">+{{ pointsThisMonth }}</span>
-                </div>
-              </div>
+      <!-- 积分概览卡片 -->
+      <motion-div
+        :initial="{ opacity: 0, scale: 0.9 }"
+        :animate="{ opacity: 1, scale: 1 }"
+        :transition="{ duration: 0.5, delay: 0.2 }"
+      >
+        <div class="points-overview">
+          <div class="overview-item">
+            <div class="overview-icon earn">
+              <i class="el-icon-plus"></i>
             </div>
-            
-            <!-- 会员等级 - 全新设计 -->
-            <div class="membership-badge">
-              <div class="text-white/80 font-medium mb-2">会员等级</div>
-              <div class="relative">
-                <div class="membership-card px-4 py-3 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 flex items-center">
-                  <div class="membership-icon mr-3">
-                    <div v-if="userLevel === '银牌会员'" class="w-12 h-12 rounded-full bg-gradient-to-r from-gray-300 to-gray-100 flex items-center justify-center text-2xl shadow-inner">
-                      🥈
-                    </div>
-                    <div v-else-if="userLevel === '金牌会员'" class="w-12 h-12 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-300 flex items-center justify-center text-2xl shadow-inner">
-                      🥇
-                    </div>
-                    <div v-else-if="userLevel === '钻石会员'" class="w-12 h-12 rounded-full bg-gradient-to-r from-blue-400 to-purple-300 flex items-center justify-center text-2xl shadow-inner">
-                      💎
-                    </div>
-                    <div v-else-if="userLevel === '至尊会员'" class="w-12 h-12 rounded-full bg-gradient-to-r from-red-500 to-orange-400 flex items-center justify-center text-2xl shadow-inner">
-                      🌟
-                    </div>
-                    <div v-else class="w-12 h-12 rounded-full bg-gradient-to-r from-gray-200 to-gray-100 flex items-center justify-center text-2xl shadow-inner">
-                      😊
-                    </div>
-                  </div>
-                  <div class="membership-info">
-                    <div class="text-lg font-bold">{{ userLevel }}</div>
-                    <div class="text-xs text-white/70">尊享会员专属特权</div>
-                  </div>
-                </div>
-              </div>
+            <div class="overview-data">
+              <div class="overview-value">{{ totalPointsEarned }}</div>
+              <div class="overview-label">累计获得</div>
             </div>
           </div>
           
-          <!-- 会员等级进度条 -->
-          <div class="level-progress mt-8 relative z-10">
-            <div class="flex justify-between text-sm mb-2">
-              <span>当前等级</span>
-              <span>{{ getNextLevel }}</span>
+          <div class="overview-item">
+            <div class="overview-icon spend">
+              <i class="el-icon-shopping-cart"></i>
             </div>
-            <div class="w-full bg-white/20 rounded-full h-2.5 mb-1">
-              <div class="bg-white h-2.5 rounded-full" :style="{ width: `${levelProgress}%` }"></div>
+            <div class="overview-data">
+              <div class="overview-value">{{ totalPointsUsed }}</div>
+              <div class="overview-label">已使用</div>
             </div>
-            <div class="text-xs text-white/80">
-              再累计 <span class="font-bold">{{ pointsToNextLevel }}</span> 积分升级为 {{ getNextLevel }}
+          </div>
+          
+          <div class="overview-item">
+            <div class="overview-icon sign">
+              <i class="el-icon-date"></i>
             </div>
+            <div class="overview-data">
+              <div class="overview-value">{{ consecutiveDays }}</div>
+              <div class="overview-label">连续签到</div>
+            </div>
+          </div>
+          
+          <div class="sign-in-action">
+            <el-button 
+              type="success" 
+              :disabled="alreadySignedIn"
+              :loading="signInLoading"
+              @click="handleSignIn"
+            >
+              {{ alreadySignedIn ? '今日已签到' : '每日签到' }}
+            </el-button>
           </div>
         </div>
+      </motion-div>
+      
+      <!-- 内容区域 -->
+      <div class="content-section">
+        <!-- 积分商城部分 -->
+        <div v-show="activeSection === 'mall'" class="points-mall-section">
+          <motion-div
+            :initial="{ opacity: 0 }"
+            :animate="{ opacity: 1 }"
+            :transition="{ duration: 0.5 }"
+          >
+            <div class="section-header">
+              <h2><i class="el-icon-shopping-cart"></i> 积分商城</h2>
+              <div class="filter-actions">
+                <el-input
+                  v-model="searchQuery"
+                  placeholder="搜索商品"
+                  prefix-icon="el-icon-search"
+                  clearable
+                  @input="filterProducts"
+                />
+                <el-select v-model="selectedCategory" @change="filterProducts" placeholder="全部分类">
+                  <el-option label="全部分类" value="all" />
+                  <el-option v-for="cat in categories" :key="cat.value" :label="cat.label" :value="cat.value" />
+                </el-select>
+                <el-select v-model="sortOrder" @change="filterProducts" placeholder="排序方式">
+                  <el-option v-for="option in sortOptions" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </div>
+            </div>
+            
+            <!-- 商品列表 -->
+            <el-tabs v-model="viewMode" class="view-mode-tabs">
+              <el-tab-pane label="网格视图" name="grid">
+                <div class="products-grid">
+                  <transition-group name="product-item">
+                    <div 
+                      v-for="product in displayProducts" 
+                      :key="product.id"
+                      class="product-card"
+                      :class="{ 'disabled': product.points > userPoints || product.stock <= 0 }"
+                    >
+                      <div class="product-image">
+                        <img :src="product.image" :alt="product.name">
+                        <div class="product-badges">
+                          <span v-if="product.isNew" class="badge new">新品</span>
+                          <span v-if="product.isHot" class="badge hot">热门</span>
+                          <span v-if="product.stock <= 0" class="badge sold-out">已售罄</span>
+                        </div>
+                      </div>
+                      <div class="product-info">
+                        <h3 class="product-name">{{ product.name }}</h3>
+                        <div class="product-meta">
+                          <div class="product-stock" v-if="product.stock > 0">库存: {{ product.stock }}</div>
+                          <div class="product-rating">
+                            <i class="el-icon-star-on" v-for="i in Math.floor(product.rating || 5)" :key="i"></i>
+                            <i class="el-icon-star-off" v-for="i in (5 - Math.floor(product.rating || 5))" :key="i+5"></i>
+                          </div>
+                        </div>
+                        <div class="product-footer">
+                          <div class="product-points">{{ product.points }} <span>积分</span></div>
+                          <el-button 
+                            type="primary" 
+                            size="small"
+                            :disabled="product.points > userPoints || product.stock <= 0"
+                            @click="exchangeProduct(product)"
+                          >
+                            {{ product.points > userPoints ? '积分不足' : (product.stock <= 0 ? '已售罄' : '立即兑换') }}
+                          </el-button>
+                        </div>
+                      </div>
+                    </div>
+                  </transition-group>
+                </div>
+              </el-tab-pane>
+              
+              <el-tab-pane label="列表视图" name="list">
+                <div class="products-list">
+                  <transition-group name="product-item">
+                    <div 
+                      v-for="product in displayProducts" 
+                      :key="product.id"
+                      class="product-list-item"
+                      :class="{ 'disabled': product.points > userPoints || product.stock <= 0 }"
+                    >
+                      <div class="product-list-image">
+                        <img :src="product.image" :alt="product.name">
+                        <div class="product-badges">
+                          <span v-if="product.isNew" class="badge new">新品</span>
+                          <span v-if="product.isHot" class="badge hot">热门</span>
+                        </div>
+                      </div>
+                      <div class="product-list-info">
+                        <h3 class="product-name">{{ product.name }}</h3>
+                        <div class="product-description">{{ product.description }}</div>
+                        <div class="product-meta">
+                          <div class="product-stock" v-if="product.stock > 0">库存: {{ product.stock }}</div>
+                          <div class="product-stock out" v-else>已售罄</div>
+                          <div class="product-rating">
+                            <i class="el-icon-star-on" v-for="i in Math.floor(product.rating || 5)" :key="i"></i>
+                            <i class="el-icon-star-off" v-for="i in (5 - Math.floor(product.rating || 5))" :key="i+5"></i>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="product-list-action">
+                        <div class="product-points">{{ product.points }} <span>积分</span></div>
+                        <el-button 
+                          type="primary"
+                          :disabled="product.points > userPoints || product.stock <= 0"
+                          @click="exchangeProduct(product)"
+                        >
+                          {{ product.points > userPoints ? '积分不足' : (product.stock <= 0 ? '已售罄' : '立即兑换') }}
+                        </el-button>
+                      </div>
+                    </div>
+                  </transition-group>
+                </div>
+              </el-tab-pane>
+            </el-tabs>
+            
+            <!-- 分页 -->
+            <div class="pagination-container" v-show="filteredProducts.length > pageSize">
+              <el-pagination
+                v-model:currentPage="currentPage"
+                :page-size="pageSize"
+                layout="prev, pager, next"
+                :total="filteredProducts.length"
+                @current-change="handlePageChange"
+              />
+            </div>
+          </motion-div>
+        </div>
         
-        <!-- 积分统计信息 -->
-        <div class="p-6">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="stat-card p-4 bg-gradient-to-br from-blue-50 to-white rounded-lg border border-blue-100 transition-all duration-300 hover:shadow-md">
-              <div class="flex items-center">
-                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                  <i class="el-icon-medal text-blue-500"></i>
-                </div>
-                <div>
-                  <div class="text-sm text-gray-500 mb-1">本月获得</div>
-                  <div class="text-2xl font-bold text-blue-600">{{ pointsThisMonth }}</div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="stat-card p-4 bg-gradient-to-br from-green-50 to-white rounded-lg border border-green-100 transition-all duration-300 hover:shadow-md">
-              <div class="flex items-center">
-                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mr-3">
-                  <i class="el-icon-plus text-green-500"></i>
-                </div>
-                <div>
-                  <div class="text-sm text-gray-500 mb-1">累计获得</div>
-                  <div class="text-2xl font-bold text-green-600">{{ totalPointsEarned }}</div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="stat-card p-4 bg-gradient-to-br from-orange-50 to-white rounded-lg border border-orange-100 transition-all duration-300 hover:shadow-md">
-              <div class="flex items-center">
-                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center mr-3">
-                  <i class="el-icon-shopping-cart text-orange-500"></i>
-                </div>
-                <div>
-                  <div class="text-sm text-gray-500 mb-1">累计使用</div>
-                  <div class="text-2xl font-bold text-orange-500">{{ totalPointsUsed }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 签到日历组件 -->
-          <div class="mt-8 border-t pt-6">
-            <h3 class="text-lg font-bold text-gray-700 mb-4 flex items-center">
-              <i class="el-icon-calendar mr-2 text-primary-500"></i>
-              连续签到
-            </h3>
-            
-            <div class="sign-in-calendar bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div class="flex justify-between items-center mb-4">
-                <div class="text-sm text-gray-600">
-                  <span v-if="consecutiveDays > 0">已连续签到 <span class="font-bold text-primary-600">{{ consecutiveDays }}</span> 天</span>
-                  <span v-else>今日尚未签到</span>
-                </div>
-                <el-button 
-                  @click="handleSignIn" 
-                  :loading="signInLoading" 
-                  :disabled="alreadySignedIn" 
-                  type="primary" 
-                  size="small"
-                  class="sign-in-btn"
-                >
-                  <i class="el-icon-check mr-1"></i> {{ alreadySignedIn ? '今日已签到' : '立即签到' }}
+        <!-- 积分记录部分 -->
+        <div v-show="activeSection === 'records'" class="points-records-section">
+          <motion-div
+            :initial="{ opacity: 0 }"
+            :animate="{ opacity: 1 }"
+            :transition="{ duration: 0.5 }"
+          >
+            <div class="section-header">
+              <h2><i class="el-icon-document"></i> 积分明细</h2>
+              <div class="filter-actions">
+                <el-select v-model="recordType" placeholder="记录类型">
+                  <el-option label="全部" value="all" />
+                  <el-option label="获得" value="earn" />
+                  <el-option label="使用" value="use" />
+                </el-select>
+                
+                <el-date-picker
+                  v-model="dateRange"
+                  type="daterange"
+                  range-separator="至"
+                  start-placeholder="开始日期"
+                  end-placeholder="结束日期"
+                  value-format="YYYY-MM-DD"
+                ></el-date-picker>
+                
+                <el-button type="primary" @click="searchRecords">
+                  <i class="el-icon-search"></i> 查询
                 </el-button>
               </div>
-              
-              <div class="flex justify-between">
-                <div 
-                  v-for="day in 7" 
-                  :key="day" 
-                  class="sign-day-item flex flex-col items-center"
-                  :class="{ 'signed': day <= consecutiveDays || (day === 1 && alreadySignedIn) }"
-                >
-                  <div class="sign-day-circle mb-1">
-                    <i v-if="day <= consecutiveDays || (day === 1 && alreadySignedIn)" class="el-icon-check"></i>
-                    <template v-else>{{ day }}</template>
-                  </div>
-                  <div class="text-xs">{{ getSignReward(day) }}</div>
-                </div>
-              </div>
             </div>
-          </div>
-          
-          <!-- 积分应用按钮组 -->
-          <div class="mt-6 flex flex-wrap gap-4 justify-center">
-            <el-button type="primary" @click="openPointsMall" class="action-btn">
-              <i class="el-icon-shopping-bag mr-1"></i> 前往积分商城
-            </el-button>
             
-            <el-button @click="expandRules = !expandRules" class="action-btn">
-              <i class="el-icon-info mr-1"></i> 积分规则
-            </el-button>
-          </div>
+            <el-table
+              :data="pointsRecords"
+              style="width: 100%"
+              :empty-text="recordsLoading ? '加载中...' : '暂无积分记录'"
+              v-loading="recordsLoading"
+              class="points-table"
+            >
+              <el-table-column prop="createTime" label="时间" min-width="180">
+                <template #default="scope">
+                  <span>{{ formatDate(scope.row.createTime) }}</span>
+                </template>
+              </el-table-column>
+              
+              <el-table-column prop="type" label="类型" width="100">
+                <template #default="scope">
+                  <div class="record-type" :class="scope.row.type">
+                    {{ scope.row.type === 'earn' ? '获得' : '使用' }}
+                  </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column prop="description" label="描述" min-width="220">
+                <template #default="scope">
+                  <div class="record-description">{{ scope.row.description }}</div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column prop="points" label="积分变动" width="120" align="right">
+                <template #default="scope">
+                  <div class="record-points" :class="scope.row.type">
+                    {{ scope.row.type === 'earn' ? '+' : '-' }}{{ Math.abs(scope.row.points) }}
+                  </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column prop="balance" label="积分余额" width="120" align="right">
+                <template #default="scope">
+                  <div class="record-balance">{{ scope.row.balance }}</div>
+                </template>
+              </el-table-column>
+            </el-table>
+            
+            <div class="pagination-container">
+              <el-pagination
+                v-model:currentPage="recordsPage"
+                :page-size="recordsPageSize"
+                layout="total, prev, pager, next, jumper"
+                :total="recordsTotal"
+                @current-change="handleRecordsPageChange"
+              />
+            </div>
+          </motion-div>
         </div>
         
-        <!-- 积分即将过期提醒 -->
-        <div v-if="expiringPoints > 0" class="px-6 pb-6">
-          <el-alert
-            title="积分即将过期提醒"
-            type="warning"
-            :closable="false"
-            show-icon
+        <!-- 积分规则部分 -->
+        <div v-show="activeSection === 'rules'" class="points-rules-section">
+          <motion-div
+            :initial="{ opacity: 0 }"
+            :animate="{ opacity: 1 }"
+            :transition="{ duration: 0.5 }"
           >
-            <template #default>
-              您有 <strong class="text-red-500">{{ expiringPoints }}</strong> 积分将在 <strong class="text-red-500">{{ expiringDate }}</strong> 过期，请尽快使用
-            </template>
-          </el-alert>
-        </div>
-      </div>
-      
-      <!-- 推荐兑换商品 -->
-      <div v-if="recommendProducts.length > 0" class="mb-8 bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-        <div class="p-6">
-          <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-            <i class="el-icon-shopping-bag mr-2 text-primary-500"></i>
-            推荐兑换
-          </h2>
-          
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div 
-              v-for="(product, index) in recommendProducts" 
-              :key="index" 
-              class="product-card rounded-lg border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-md"
-            >
-              <div class="product-img aspect-w-1 aspect-h-1 bg-gray-100">
-                <img :src="product.image" alt="商品图片" class="object-cover w-full h-full">
-              </div>
-              <div class="p-3">
-                <div class="text-sm font-medium text-gray-800 mb-1 line-clamp-2">{{ product.name }}</div>
-                <div class="flex justify-between items-center">
-                  <div class="text-primary-600 font-bold">{{ product.points }}积分</div>
-                  <el-button type="primary" size="small" plain>兑换</el-button>
-                </div>
-              </div>
+            <div class="section-header">
+              <h2><i class="el-icon-info"></i> 积分规则</h2>
             </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 积分规则 -->
-      <transition name="fade">
-        <div v-if="expandRules" class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden mb-8">
-          <div class="p-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              <i class="el-icon-info-filled mr-2 text-gray-500"></i>
-              积分规则
-            </h2>
             
-            <div class="rules-content">
+            <div class="rules-container">
               <el-collapse accordion>
                 <el-collapse-item title="如何获得积分" name="1">
-                  <div class="p-3">
-                    <div class="rule-item mb-2">
-                      <div class="flex items-center text-gray-700">
-                        <div class="w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center mr-2 text-primary-500 font-bold">1</div>
-                        <div class="font-medium">每日签到</div>
+                  <div class="rule-content">
+                    <div class="rule-item">
+                      <div class="rule-icon"><i class="el-icon-date"></i></div>
+                      <div class="rule-detail">
+                        <div class="rule-title">每日签到</div>
+                        <div class="rule-description">每日签到可获得5积分，连续签到额外奖励</div>
                       </div>
-                      <div class="ml-8 text-gray-500">每日签到可获得5积分，连续签到额外奖励</div>
-                    </div>
-                    
-                    <div class="rule-item mb-2">
-                      <div class="flex items-center text-gray-700">
-                        <div class="w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center mr-2 text-primary-500 font-bold">2</div>
-                        <div class="font-medium">购物消费</div>
-                      </div>
-                      <div class="ml-8 text-gray-500">购物消费金额的10%转化为积分（1元=1积分）</div>
-                    </div>
-                    
-                    <div class="rule-item mb-2">
-                      <div class="flex items-center text-gray-700">
-                        <div class="w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center mr-2 text-primary-500 font-bold">3</div>
-                        <div class="font-medium">评价商品</div>
-                      </div>
-                      <div class="ml-8 text-gray-500">评价商品奖励10积分，带图评价奖励20积分</div>
                     </div>
                     
                     <div class="rule-item">
-                      <div class="flex items-center text-gray-700">
-                        <div class="w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center mr-2 text-primary-500 font-bold">4</div>
-                        <div class="font-medium">活动奖励</div>
+                      <div class="rule-icon"><i class="el-icon-shopping-cart"></i></div>
+                      <div class="rule-detail">
+                        <div class="rule-title">购物消费</div>
+                        <div class="rule-description">购物消费金额的10%转化为积分（1元=1积分）</div>
                       </div>
-                      <div class="ml-8 text-gray-500">参与平台活动可获得相应积分奖励</div>
+                    </div>
+                    
+                    <div class="rule-item">
+                      <div class="rule-icon"><i class="el-icon-chat-line-square"></i></div>
+                      <div class="rule-detail">
+                        <div class="rule-title">评价商品</div>
+                        <div class="rule-description">评价商品奖励10积分，带图评价奖励20积分</div>
+                      </div>
+                    </div>
+                    
+                    <div class="rule-item">
+                      <div class="rule-icon"><i class="el-icon-trophy"></i></div>
+                      <div class="rule-detail">
+                        <div class="rule-title">活动奖励</div>
+                        <div class="rule-description">参与平台活动可获得相应积分奖励</div>
+                      </div>
                     </div>
                   </div>
                 </el-collapse-item>
                 
                 <el-collapse-item title="积分使用方式" name="2">
-                  <div class="p-3">
-                    <div class="rule-item mb-2">
-                      <div class="flex items-center text-gray-700">
-                        <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-2 text-green-500 font-bold">1</div>
-                        <div class="font-medium">积分商城兑换</div>
+                  <div class="rule-content">
+                    <div class="rule-item">
+                      <div class="rule-icon"><i class="el-icon-shopping-bag"></i></div>
+                      <div class="rule-detail">
+                        <div class="rule-title">积分商城兑换</div>
+                        <div class="rule-description">在积分商城兑换各类商品和优惠券</div>
                       </div>
-                      <div class="ml-8 text-gray-500">在积分商城兑换各类商品和优惠券</div>
-                    </div>
-                    
-                    <div class="rule-item mb-2">
-                      <div class="flex items-center text-gray-700">
-                        <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-2 text-green-500 font-bold">2</div>
-                        <div class="font-medium">下单抵现</div>
-                      </div>
-                      <div class="ml-8 text-gray-500">结算时可使用积分抵扣部分金额（100积分=1元）</div>
                     </div>
                     
                     <div class="rule-item">
-                      <div class="flex items-center text-gray-700">
-                        <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-2 text-green-500 font-bold">3</div>
-                        <div class="font-medium">会员等级提升</div>
+                      <div class="rule-icon"><i class="el-icon-money"></i></div>
+                      <div class="rule-detail">
+                        <div class="rule-title">下单抵现</div>
+                        <div class="rule-description">结算时可使用积分抵扣部分金额（100积分=1元）</div>
                       </div>
-                      <div class="ml-8 text-gray-500">积分累计可提升会员等级，享受更多特权</div>
+                    </div>
+                    
+                    <div class="rule-item">
+                      <div class="rule-icon"><i class="el-icon-rank"></i></div>
+                      <div class="rule-detail">
+                        <div class="rule-title">会员等级提升</div>
+                        <div class="rule-description">积分累计可提升会员等级，享受更多特权</div>
+                      </div>
                     </div>
                   </div>
                 </el-collapse-item>
                 
                 <el-collapse-item title="积分有效期" name="3">
-                  <div class="p-3">
-                    <p class="text-gray-700 mb-2">积分有效期为获得之日起1年，过期积分将自动清零。</p>
-                    <p class="text-gray-700 mb-2">系统会在积分过期前一个月发送提醒通知。</p>
-                    <p class="text-gray-700">建议您及时使用即将过期的积分。</p>
+                  <div class="rule-content">
+                    <div class="rule-text">
+                      <p>积分有效期为获得之日起1年，过期积分将自动清零。</p>
+                      <p>系统会在积分过期前一个月发送提醒通知。</p>
+                      <p>建议您及时使用即将过期的积分。</p>
+                    </div>
                   </div>
                 </el-collapse-item>
               </el-collapse>
             </div>
-          </div>
+          </motion-div>
         </div>
-      </transition>
-      
-      <!-- 积分记录 -->
-      <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-        <div class="p-6">
-          <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-            <i class="el-icon-document mr-2 text-gray-500"></i>
-            积分明细
-          </h2>
-          
-          <div class="filter-row mb-4 flex flex-wrap gap-4 items-center">
-            <el-select v-model="recordType" placeholder="记录类型" class="w-32">
-              <el-option label="全部" value="all"></el-option>
-              <el-option label="获得" value="earn"></el-option>
-              <el-option label="使用" value="use"></el-option>
-            </el-select>
-            
-            <el-date-picker
-              v-model="dateRange"
-              type="daterange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-            ></el-date-picker>
-            
-            <el-button type="primary" @click="searchRecords" class="ml-auto">
-              <i class="el-icon-search mr-1"></i> 查询
-            </el-button>
-          </div>
-          
-          <!-- 积分记录表格 -->
-          <el-table
-            :data="pointsRecords"
-            style="width: 100%"
-            :empty-text="loading ? '加载中...' : '暂无积分记录'"
-            v-loading="loading"
-            row-class-name="points-record-row"
-          >
-            <el-table-column prop="time" label="时间" min-width="160">
-              <template #default="scope">
-                <span class="text-gray-600">{{ formatDate(scope.row.time) }}</span>
-              </template>
-            </el-table-column>
-            
-            <el-table-column prop="type" label="类型" width="100">
-              <template #default="scope">
-                <div 
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium" 
-                  :class="scope.row.type === 'earn' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'"
-                >
-                  {{ scope.row.type === 'earn' ? '获得' : '使用' }}
-                </div>
-              </template>
-            </el-table-column>
-            
-            <el-table-column prop="description" label="描述" min-width="200">
-              <template #default="scope">
-                <div class="text-gray-700">{{ scope.row.description }}</div>
-              </template>
-            </el-table-column>
-            
-            <el-table-column prop="points" label="积分变动" width="120">
-              <template #default="scope">
-                <span 
-                  class="font-medium" 
-                  :class="scope.row.type === 'earn' ? 'text-green-600' : 'text-red-500'"
-                >
-                  {{ scope.row.type === 'earn' ? '+' : '-' }}{{ scope.row.points }}
-                </span>
-              </template>
-            </el-table-column>
-            
-            <el-table-column prop="balance" label="积分余额" width="120">
-              <template #default="scope">
-                <span class="text-gray-700 font-medium">{{ scope.row.balance }}</span>
-              </template>
-            </el-table-column>
-          </el-table>
-          
-          <!-- 分页 -->
-          <div class="pagination-container mt-4 flex justify-center">
-            <el-pagination
-              v-model:current-page="currentPage"
-              :page-sizes="[10, 20, 30, 50]"
-              :page-size="pageSize"
-              layout="total, sizes, prev, pager, next, jumper"
-              :total="total"
-              @size-change="handleSizeChange"
-              @current-change="handleCurrentChange"
-            ></el-pagination>
-          </div>
+      </div>
+    </template>
+    
+    <!-- 积分兑换确认对话框 -->
+    <el-dialog
+      v-model="exchangeDialogVisible"
+      title="积分兑换确认"
+      width="400px"
+    >
+      <div class="exchange-dialog-content" v-if="selectedProduct">
+        <div class="product-preview">
+          <img :src="selectedProduct.image" :alt="selectedProduct.name">
         </div>
+        <div class="product-info">
+          <h3>{{ selectedProduct.name }}</h3>
+          <div class="exchange-points">所需积分: <span>{{ selectedProduct.points }}</span></div>
+          <div class="user-points">您的积分: <span>{{ userPoints }}</span></div>
+          <div class="balance-points">兑换后剩余: <span>{{ userPoints - selectedProduct.points }}</span></div>
+        </div>
+        <div class="exchange-warning" v-if="selectedProduct.category === 'physical'">
+          实物商品需要填写收货地址
+        </div>
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="exchangeDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmExchange" :loading="exchangeLoading">
+            确认兑换
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+    
+    <!-- 兑换成功动画 -->
+    <div class="exchange-success-animation" v-if="showExchangeSuccess">
+      <div class="success-content">
+        <div class="success-icon">
+          <i class="el-icon-check"></i>
+        </div>
+        <div class="success-text">兑换成功</div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatDate } from '@/utils/date';
-import { getUserPoints, getPointsRecords, signIn, checkSignIn } from '@/api/points';
+import { 
+  getUserPoints, 
+  getPointsRecords, 
+  signIn, 
+  checkSignIn, 
+  getPointsProducts,
+  exchangeProduct as apiExchangeProduct,
+  getGiftList,
+  checkPointsAvailable
+} from '@/api/points';
 
 const router = useRouter();
 
+// 页面状态
+const loading = ref(true);
+const activeSection = ref('mall'); // mall, records, rules
+
 // 用户积分数据
 const userPoints = ref(0);
+const animatedPoints = ref(0);
 const userLevel = ref('普通会员');
 const pointsThisMonth = ref(0);
 const totalPointsEarned = ref(0);
 const totalPointsUsed = ref(0);
 const expiringPoints = ref(0);
 const expiringDate = ref('');
+const consecutiveDays = ref(0);
+const pointsValueRef = ref(null);
 
 // 会员等级相关数据
 const levelPoints = {
@@ -433,8 +501,62 @@ const levelPoints = {
   '至尊会员': 50000
 };
 
-// 连续签到天数
-const consecutiveDays = ref(0);
+// 会员图标
+const getMemberIcon = computed(() => {
+  const icons = {
+    '普通会员': 'el-icon-user',
+    '银牌会员': 'el-icon-medal',
+    '金牌会员': 'el-icon-medal-1',
+    '钻石会员': 'el-icon-trophy',
+    '至尊会员': 'el-icon-trophy-1'
+  };
+  return icons[userLevel.value] || 'el-icon-user';
+});
+
+// 积分商城数据
+const products = ref([]);
+const filteredProducts = ref([]);
+const displayProducts = ref([]);
+const viewMode = ref('grid');
+const selectedCategory = ref('all');
+const searchQuery = ref('');
+const sortOrder = ref('popular');
+const currentPage = ref(1);
+const pageSize = ref(8);
+
+// 兑换相关
+const selectedProduct = ref(null);
+const exchangeDialogVisible = ref(false);
+const exchangeLoading = ref(false);
+const showExchangeSuccess = ref(false);
+
+// 积分记录数据
+const pointsRecords = ref([]);
+const recordType = ref('all');
+const dateRange = ref([]);
+const recordsPage = ref(1);
+const recordsPageSize = ref(10);
+const recordsTotal = ref(0);
+const recordsLoading = ref(false);
+
+// 签到状态
+const alreadySignedIn = ref(false);
+const signInLoading = ref(false);
+
+// 分类和排序选项
+const categories = [
+  { value: 'digital', label: '数码产品' },
+  { value: 'vouchers', label: '代金券' },
+  { value: 'physical', label: '实物商品' },
+  { value: 'vip', label: '会员特权' }
+];
+
+const sortOptions = [
+  { value: 'popular', label: '热门优先' },
+  { value: 'points-low', label: '积分从低到高' },
+  { value: 'points-high', label: '积分从高到高' },
+  { value: 'newest', label: '最新上架' }
+];
 
 // 计算下一个等级
 const getNextLevel = computed(() => {
@@ -474,68 +596,48 @@ const levelProgress = computed(() => {
   return Math.min(Math.max(progress, 0), 100);
 });
 
-// 获取签到奖励
-const getSignReward = (day) => {
-  const rewards = {
-    1: '+5积分',
-    2: '+5积分',
-    3: '+8积分',
-    4: '+8积分',
-    5: '+10积分',
-    6: '+15积分',
-    7: '+20积分'
-  };
+// 显示指定板块
+const showSection = (section) => {
+  activeSection.value = section;
   
-  return rewards[day] || '+5积分';
+  // 如果切换到积分记录部分，加载数据
+  if (section === 'records' && pointsRecords.value.length === 0) {
+    loadPointsRecords();
+  }
 };
 
-// 推荐兑换商品数据
-const recommendProducts = ref([
-  {
-    name: '婴儿奶瓶保温套装',
-    points: 2000,
-    image: 'https://img.freepik.com/free-photo/collection-baby-care-items_23-2148615543.jpg?size=626&ext=jpg'
-  },
-  {
-    name: '婴儿安抚玩具',
-    points: 1500,
-    image: 'https://img.freepik.com/free-photo/cute-plush-toys-arrangement_23-2150312242.jpg?size=626&ext=jpg'
-  },
-  {
-    name: '儿童益智拼图',
-    points: 1200,
-    image: 'https://img.freepik.com/free-photo/closeup-child-playing-with-wooden-toys_23-2148518376.jpg?size=626&ext=jpg'
-  },
-  {
-    name: '优惠券礼包',
-    points: 800,
-    image: 'https://img.freepik.com/free-photo/arrangement-black-friday-shopping-bags_23-2149047261.jpg?size=626&ext=jpg'
-  }
-]);
+// 动画显示积分数字
+const animatePointsValue = () => {
+  const start = 0;
+  const end = userPoints.value;
+  const duration = 1000; // 动画持续时间（毫秒）
+  const frameDuration = 1000 / 60; // 每帧持续时间（假设60fps）
+  const totalFrames = Math.round(duration / frameDuration);
+  const valueIncrement = (end - start) / totalFrames;
+  
+  let currentFrame = 0;
+  
+  const animate = () => {
+    currentFrame++;
+    const newValue = Math.round(Math.min(start + (valueIncrement * currentFrame), end));
+    animatedPoints.value = newValue;
+    
+    if (currentFrame < totalFrames) {
+      requestAnimationFrame(animate);
+    } else {
+      animatedPoints.value = end;
+    }
+  };
+  
+  animate();
+};
 
-// 积分规则展开状态
-const expandRules = ref(false);
-
-// 签到状态
-const alreadySignedIn = ref(false);
-const signInLoading = ref(false);
-
-// 积分记录筛选条件
-const recordType = ref('all');
-const dateRange = ref([]);
-const currentPage = ref(1);
-const pageSize = ref(10);
-const total = ref(0);
-const loading = ref(false);
-
-// 积分记录数据
-const pointsRecords = ref([]);
-
-// 获取用户积分信息
+// 加载用户积分信息
 const loadUserPoints = async () => {
   try {
     const res = await getUserPoints();
     if (res.code === 200 && res.data) {
+      // 设置积分数据
       userPoints.value = res.data.points || 0;
       userLevel.value = res.data.userLevel || '普通会员';
       pointsThisMonth.value = res.data.pointsThisMonth || 0;
@@ -544,11 +646,97 @@ const loadUserPoints = async () => {
       expiringPoints.value = res.data.expiringPoints || 0;
       expiringDate.value = res.data.expiringDate || '';
       consecutiveDays.value = res.data.consecutiveDays || 0;
+      
+      // 启动积分数字动画
+      animatedPoints.value = 0;
+      nextTick(() => {
+        animatePointsValue();
+      });
     }
   } catch (error) {
     console.error('获取用户积分信息失败:', error);
     ElMessage.error('获取积分信息失败，请稍后再试');
+  } finally {
+    loading.value = false;
   }
+};
+
+// 加载积分商城商品
+const loadProducts = async () => {
+  try {
+    const res = await getPointsProducts();
+    if (res.code === 200 && res.data) {
+      // 处理并格式化商品数据
+      products.value = res.data.map(item => ({
+        id: item.id,
+        name: item.name,
+        description: item.description || '暂无描述',
+        image: item.image || 'https://via.placeholder.com/200',
+        points: item.points,
+        stock: item.stock,
+        category: item.category,
+        isNew: item.isNew || false,
+        isHot: item.isHot || false,
+        rating: item.rating || (Math.random() * 2 + 3).toFixed(1), // 随机生成3-5的评分
+        needAddress: item.needAddress,
+        needPhone: item.needPhone
+      }));
+      
+      // 初始化筛选
+      filterProducts();
+    }
+  } catch (error) {
+    console.error('获取积分商品失败:', error);
+    ElMessage.error('获取积分商品失败，请稍后再试');
+  }
+};
+
+// 筛选和排序商品
+const filterProducts = () => {
+  // 首先按类别和搜索词筛选
+  let result = [...products.value];
+  
+  // 按类别筛选
+  if (selectedCategory.value !== 'all') {
+    result = result.filter(item => item.category === selectedCategory.value);
+  }
+  
+  // 按搜索词筛选
+  if (searchQuery.value) {
+    const keyword = searchQuery.value.toLowerCase();
+    result = result.filter(item => 
+      item.name.toLowerCase().includes(keyword) || 
+      item.description.toLowerCase().includes(keyword)
+    );
+  }
+  
+  // 然后排序
+  switch (sortOrder.value) {
+    case 'points-low':
+      result.sort((a, b) => a.points - b.points);
+      break;
+    case 'points-high':
+      result.sort((a, b) => b.points - a.points);
+      break;
+    case 'newest':
+      result.sort((a, b) => (a.isNew ? -1 : 1) - (b.isNew ? -1 : 1));
+      break;
+    case 'popular':
+    default:
+      result.sort((a, b) => (a.isHot ? -1 : 1) - (b.isHot ? -1 : 1));
+      break;
+  }
+  
+  filteredProducts.value = result;
+  handlePageChange(1); // 重置到第一页
+};
+
+// 处理分页变化
+const handlePageChange = (page) => {
+  currentPage.value = page;
+  const start = (page - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  displayProducts.value = filteredProducts.value.slice(start, end);
 };
 
 // 获取签到状态
@@ -578,15 +766,20 @@ const handleSignIn = async () => {
       // 增加连续签到天数
       consecutiveDays.value += 1;
       
+      // 更新积分
+      const earnedPoints = res.data.points || 5;
+      userPoints.value += earnedPoints;
+      totalPointsEarned.value += earnedPoints;
+      
+      // 动画展示
+      animatePointsValue();
+      
       // 显示签到成功动画和提示
       ElMessage({
-        message: `签到成功，获得${res.data.points || 5}积分`,
+        message: `签到成功，获得${earnedPoints}积分`,
         type: 'success',
         duration: 3000
       });
-      
-      // 重新加载积分信息
-      loadUserPoints();
     } else {
       ElMessage.error(res.message || '签到失败');
     }
@@ -600,11 +793,11 @@ const handleSignIn = async () => {
 
 // 获取积分记录
 const loadPointsRecords = async () => {
-  loading.value = true;
+  recordsLoading.value = true;
   try {
     const params = {
-      page: currentPage.value,
-      pageSize: pageSize.value,
+      page: recordsPage.value,
+      pageSize: recordsPageSize.value,
       type: recordType.value !== 'all' ? recordType.value : undefined,
       startDate: dateRange.value && dateRange.value[0] ? dateRange.value[0] : undefined,
       endDate: dateRange.value && dateRange.value[1] ? dateRange.value[1] : undefined
@@ -613,45 +806,198 @@ const loadPointsRecords = async () => {
     const res = await getPointsRecords(params);
     if (res.code === 200 && res.data) {
       pointsRecords.value = res.data.records || [];
-      total.value = res.data.total || 0;
+      recordsTotal.value = res.data.total || 0;
     }
   } catch (error) {
     console.error('获取积分记录失败:', error);
     ElMessage.error('获取积分记录失败，请稍后再试');
   } finally {
-    loading.value = false;
+    recordsLoading.value = false;
   }
 };
 
 // 搜索积分记录
 const searchRecords = () => {
-  currentPage.value = 1;
+  recordsPage.value = 1;
   loadPointsRecords();
 };
 
-// 处理页码变化
-const handleCurrentChange = (val) => {
-  currentPage.value = val;
+// 处理积分记录分页变化
+const handleRecordsPageChange = (page) => {
+  recordsPage.value = page;
   loadPointsRecords();
 };
 
-// 处理每页条数变化
-const handleSizeChange = (val) => {
-  pageSize.value = val;
-  currentPage.value = 1;
-  loadPointsRecords();
+// 兑换商品
+const exchangeProduct = (product) => {
+  // 检查积分是否足够
+  if (userPoints.value < product.points) {
+    ElMessage.warning('积分不足，无法兑换该商品');
+    return;
+  }
+  
+  // 检查库存是否足够
+  if (product.stock <= 0) {
+    ElMessage.warning('该商品已售罄');
+    return;
+  }
+  
+  // 设置选中的商品
+  selectedProduct.value = product;
+  
+  // 显示兑换确认对话框
+  exchangeDialogVisible.value = true;
 };
 
-// 前往积分商城
-const openPointsMall = () => {
-  router.push('/points-mall');
+// 确认兑换
+const confirmExchange = async () => {
+  if (!selectedProduct.value) return;
+  
+  exchangeLoading.value = true;
+  try {
+    // 调用兑换API
+    const res = await apiExchangeProduct(selectedProduct.value.id);
+    
+    if (res.code === 200) {
+      // 关闭对话框
+      exchangeDialogVisible.value = false;
+      
+      // 更新积分
+      const productPoints = selectedProduct.value.points;
+      userPoints.value -= productPoints;
+      totalPointsUsed.value += productPoints;
+      
+      // 更新商品库存
+      const productIndex = products.value.findIndex(p => p.id === selectedProduct.value.id);
+      if (productIndex !== -1) {
+        products.value[productIndex].stock -= 1;
+      }
+      
+      // 重新筛选商品
+      filterProducts();
+      
+      // 显示兑换成功动画
+      showExchangeSuccess.value = true;
+      setTimeout(() => {
+        showExchangeSuccess.value = false;
+      }, 2000);
+      
+      // 提示成功
+      ElMessage.success('商品兑换成功');
+    } else {
+      ElMessage.error(res.message || '兑换失败');
+    }
+  } catch (error) {
+    console.error('兑换商品失败:', error);
+    ElMessage.error('兑换失败，请稍后再试');
+  } finally {
+    exchangeLoading.value = false;
+  }
 };
 
-onMounted(() => {
-  loadUserPoints();
-  checkSignInStatus();
-  loadPointsRecords();
+// 监听筛选条件变化
+watch([selectedCategory, sortOrder], () => {
+  filterProducts();
+});
+
+// 初始化
+onMounted(async () => {
+  await loadUserPoints(); // 先加载用户积分信息
+  await loadProducts(); // 然后加载商品
+  checkSignInStatus(); // 检查签到状态
+  
+  // 模拟数据，如果API不可用
+  if (products.value.length === 0) {
+    products.value = [
+      {
+        id: '1',
+        name: '婴儿奶瓶保温套装',
+        description: '高品质婴儿奶瓶保温套装，保持奶温，给宝宝最贴心的呵护',
+        points: 2000,
+        stock: 15,
+        category: 'physical',
+        isHot: true,
+        rating: 4.8,
+        image: 'https://img.freepik.com/free-photo/collection-baby-care-items_23-2148615543.jpg?size=626&ext=jpg'
+      },
+      {
+        id: '2',
+        name: '婴儿安抚玩具',
+        description: '柔软舒适的婴儿安抚玩具，帮助宝宝安稳入睡',
+        points: 1500,
+        stock: 20,
+        category: 'physical',
+        isNew: true,
+        rating: 4.5,
+        image: 'https://img.freepik.com/free-photo/cute-plush-toys-arrangement_23-2150312242.jpg?size=626&ext=jpg'
+      },
+      {
+        id: '3',
+        name: '儿童益智拼图',
+        description: '培养孩子逻辑思维的益智拼图，多种难度可选',
+        points: 1200,
+        stock: 30,
+        category: 'physical',
+        rating: 4.3,
+        image: 'https://img.freepik.com/free-photo/closeup-child-playing-with-wooden-toys_23-2148518376.jpg?size=626&ext=jpg'
+      },
+      {
+        id: '4',
+        name: '优惠券礼包',
+        description: '包含多种商品优惠券的礼包，总价值超过200元',
+        points: 800,
+        stock: 100,
+        category: 'vouchers',
+        isHot: true,
+        rating: 4.0,
+        image: 'https://img.freepik.com/free-photo/arrangement-black-friday-shopping-bags_23-2149047261.jpg?size=626&ext=jpg'
+      },
+      {
+        id: '5',
+        name: '母婴店消费券',
+        description: '价值100元的母婴店通用消费券',
+        points: 900,
+        stock: 50,
+        category: 'vouchers',
+        rating: 4.2,
+        image: 'https://img.freepik.com/free-photo/mother-with-her-little-daughter-shopping_23-2148924915.jpg?size=626&ext=jpg'
+      },
+      {
+        id: '6',
+        name: 'VIP会员1个月',
+        description: '享受1个月VIP会员特权，包括免运费、专属客服等',
+        points: 1800,
+        stock: 999,
+        category: 'vip',
+        isNew: true,
+        rating: 4.7,
+        image: 'https://img.freepik.com/free-photo/3d-render-golden-badge-customer-service_107791-16607.jpg?size=626&ext=jpg'
+      },
+      {
+        id: '7',
+        name: '儿童智能手表',
+        description: '支持定位功能的儿童智能手表，让父母随时掌握孩子位置',
+        points: 3500,
+        stock: 5,
+        category: 'digital',
+        isHot: true,
+        rating: 4.9,
+        image: 'https://img.freepik.com/free-photo/smart-watch-with-pink-color-flat-lay_23-2149458581.jpg?size=626&ext=jpg'
+      },
+      {
+        id: '8',
+        name: '婴儿监控器',
+        description: '高清婴儿监控器，随时随地关注宝宝状况',
+        points: 3000,
+        stock: 8,
+        category: 'digital',
+        rating: 4.6,
+        image: 'https://img.freepik.com/free-photo/baby-sleeping-sweet-dreams_23-2149342089.jpg?size=626&ext=jpg'
+      }
+    ];
+    filterProducts();
+  }
 });
 </script>
 
-<style src="../styles/Points.scss" scoped></style> 
+<style lang="scss" src="../styles/Points.scss"></style> 

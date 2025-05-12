@@ -4,8 +4,10 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { useCartStore } from '@/stores/cart';
 import { useOrderStore } from '@/stores/order';
 import { useUserStore } from '@/stores/user';
+import { usePointsStore } from '@/stores/points';
 import { getUserAddresses } from '@/api/user';
 import { getAvailableCouponsForOrder, validateCoupon } from '@/api/coupon';
+import { getUserPoints } from '@/api/points';
 import { regionData } from '@/utils/regionData';
 import { getUserInfo as getAuthUserInfo, ensureUserId } from '@/utils/auth';
 
@@ -15,6 +17,7 @@ export default function useCheckout() {
   const cartStore = useCartStore();
   const orderStore = useOrderStore();
   const userStore = useUserStore();
+  const pointsStore = usePointsStore();
 
   // 购买来源（'cart' 或 'buy_now'）
   const orderSource = ref('cart');
@@ -64,50 +67,89 @@ export default function useCheckout() {
 
   // 订单商品
   const selectedItems = computed(() => {
-    // 首先尝试从cartStore获取选中商品
     console.log('[Checkout Debug] 计算selectedItems, cartStore.selectedItems:', cartStore.selectedItems);
-    if (cartStore.selectedItems && cartStore.selectedItems.length > 0) {
-      console.log('[Checkout Debug] 使用cartStore中的选中商品');
-      const items = cartStore.selectedCartItems;
-      console.log('[Checkout Debug] cartStore.selectedCartItems长度:', items.length);
-      if (items && items.length > 0) {
-        // 确保所有必要字段都存在
-        return items.map(item => ({
-          ...item,
-          id: item.id || item.cartId,
-          cartId: item.cartId || item.id,
-          productName: item.productName || item.title || '未命名商品',
-          productImage: item.productImage || item.image || '',
-          price: item.price || item.priceSnapshot || 0,
-          specs: item.specs || item.specification || '默认规格',
-          selected: item.selected || 1
-        }));
-      }
-    }
     
-    // 如果cartStore没有选中商品或者获取到的列表为空，尝试从localStorage读取
+    // 首先尝试从localStorage读取选中商品
     try {
       const storedItems = localStorage.getItem('checkoutItems');
       if (storedItems) {
         const items = JSON.parse(storedItems);
-        console.log('[Checkout Debug] 从localStorage读取商品:', items.length);
-        // 确保商品数据格式正确
-        return items.map(item => {
-          return {
+        console.log('[Checkout Debug] 从localStorage读取到商品数量:', items.length);
+        
+        // 确保数据有效
+        if (items && items.length > 0) {
+          // 确保所有必要字段都存在
+          const formattedItems = items.map(item => ({
             id: item.id || item.cartId,
             cartId: item.cartId || item.id,
             productId: item.productId,
-            productName: item.title || item.productName || '未命名商品',
-            productImage: item.image || item.productImage || '',
+            productName: item.productName || item.title || '未命名商品',
+            productImage: item.productImage || item.image || '',
             price: item.price || item.priceSnapshot || 0,
             quantity: item.quantity || 1,
-            specs: item.specs || item.specification || '默认规格',
+            specs: Array.isArray(item.specs) ? item.specs.join(', ') : (item.specs || item.specification || '默认规格'),
             selected: 1
-          };
-        });
+          }));
+          
+          console.log('[Checkout Debug] 使用localStorage中的商品数据, 商品数量:', formattedItems.length);
+          return formattedItems;
+        }
+      } else {
+        console.log('[Checkout Debug] localStorage中没有checkoutItems数据');
       }
     } catch (e) {
       console.error('[Checkout Debug] 解析localStorage商品数据失败:', e);
+    }
+    
+    // 如果localStorage没有数据，再尝试从cartStore获取选中商品
+    if (cartStore.selectedItems && cartStore.selectedItems.length > 0) {
+      console.log('[Checkout Debug] 尝试从cartStore获取选中商品');
+      
+      // 显式过滤已选中状态的商品项
+      const filteredItems = cartStore.cartItems.filter(item => item.selected === 1);
+      console.log('[Checkout Debug] 从cartStore过滤后的已选中商品数量:', filteredItems.length);
+      
+      if (filteredItems.length > 0) {
+        // 确保所有必要字段都存在
+        const formattedItems = filteredItems.map(item => ({
+          id: item.id || item.cartId,
+          cartId: item.cartId || item.id,
+          productId: item.productId,
+          productName: item.productName || item.title || '未命名商品',
+          productImage: item.productImage || item.image || '',
+          price: item.price || item.priceSnapshot || 0,
+          quantity: item.quantity || 1,
+          specs: Array.isArray(item.specs) ? item.specs.join(', ') : (item.specs || item.specification || '默认规格'),
+          selected: 1
+        }));
+        
+        console.log('[Checkout Debug] 使用过滤后的cartStore商品数据，商品数量:', formattedItems.length);
+        return formattedItems;
+      }
+      
+      console.log('[Checkout Debug] cartStore中没有已选中状态的商品，检查selectedCartItems');
+      
+      // 当前代码中的cartStore.selectedCartItems可能包含未选中的商品，因此最终手段才使用它
+      const items = cartStore.selectedCartItems;
+      console.log('[Checkout Debug] cartStore.selectedCartItems长度:', items?.length || 0);
+      
+      if (items && items.length > 0) {
+        // 确保所有必要字段都存在
+        const formattedItems = items.map(item => ({
+          id: item.id || item.cartId,
+          cartId: item.cartId || item.id,
+          productId: item.productId,
+          productName: item.productName || item.title || '未命名商品',
+          productImage: item.productImage || item.image || '',
+          price: item.price || item.priceSnapshot || 0,
+          quantity: item.quantity || 1,
+          specs: Array.isArray(item.specs) ? item.specs.join(', ') : (item.specs || item.specification || '默认规格'),
+          selected: 1
+        }));
+        
+        console.log('[Checkout Debug] 使用cartStore.selectedCartItems数据，商品数量:', formattedItems.length);
+        return formattedItems;
+      }
     }
     
     console.log('[Checkout Debug] 无法获取选中商品，返回空数组');
@@ -120,21 +162,24 @@ export default function useCheckout() {
     { 
       id: 1, 
       name: '普通快递', 
-      fee: 0, 
+      fee: 0,
+      actualFee: 0, // 将在initCheckout中根据订单金额更新
       icon: 'Van',
       description: '订单满99元包邮 (3-5天送达)'
     },
     { 
       id: 2, 
       name: '加急快递', 
-      fee: 10, 
+      fee: 10,
+      actualFee: 10,
       icon: 'Van',
       description: '次日送达 (仅支持部分城市)'
     },
     { 
       id: 3, 
       name: '到店自提', 
-      fee: 0, 
+      fee: 0,
+      actualFee: 0,
       icon: 'ShoppingBag',
       description: '节省运费，门店取货更方便'
     }
@@ -193,22 +238,91 @@ export default function useCheckout() {
     }, 0);
   });
 
+  // 计算运费
+  const shippingFee = computed(() => {
+    if (!selectedShipping.value) return 0;
+    
+    // 如果已经计算了actualFee，则直接使用
+    if (selectedShipping.value.actualFee !== undefined) {
+      return selectedShipping.value.actualFee;
+    }
+    
+    // 普通快递，订单满99元免运费，否则10元运费
+    if (selectedShipping.value.id === 1) {
+      return subtotal.value >= 99 ? 0 : 10;
+    }
+    
+    // 其他配送方式，使用固定运费
+    return selectedShipping.value.fee || 0;
+  });
+
+  // 积分抵扣相关状态
+  const userPoints = ref(0);
+  const usePointsForDiscount = ref(false);
+  const pointsToUse = ref(0);
+  const pointsInputValue = ref(0);
+  const isLoadingPoints = ref(true);
+  const maxPointsDiscount = ref(50); // 最大积分抵扣金额（元）
+  const maxPointsUsage = ref(5000); // 最大可使用积分数量
+
+  // 计算积分抵扣金额
+  const pointsDiscountAmount = computed(() => {
+    if (!usePointsForDiscount.value || pointsToUse.value <= 0) {
+      console.log('[Checkout] 积分抵扣未启用或积分为0:', { usePointsForDiscount: usePointsForDiscount.value, pointsToUse: pointsToUse.value });
+      return 0;
+    }
+    // 每100积分抵扣1元
+    const discount = Math.floor(pointsToUse.value / 100);
+    // 不超过最大抵扣金额和订单总金额
+    const maxDiscount = Math.min(maxPointsDiscount.value, subtotal.value);
+    const finalDiscount = Math.min(discount, maxDiscount);
+    console.log('[Checkout] 计算积分抵扣金额:', { discount, maxDiscount, finalDiscount, pointsToUse: pointsToUse.value });
+    return finalDiscount;
+  });
+
+  // 修改total的计算属性，加入积分抵扣逻辑
   const total = computed(() => {
     let totalAmount = subtotal.value;
     
     // 加上运费
-    if (selectedShipping.value) {
-      totalAmount += selectedShipping.value.fee || 0;
+    if (selectedShipping.value && selectedShipping.value.actualFee !== undefined) {
+      totalAmount += selectedShipping.value.actualFee;
+    } else if (shippingFee.value) {
+      totalAmount += shippingFee.value;
     }
     
     // 减去优惠券金额
     if (selectedCoupon.value) {
-      totalAmount -= selectedCoupon.value.amount;
+      // 确保优惠券金额是数字
+      const couponAmount = parseFloat(selectedCoupon.value.value || selectedCoupon.value.amount || 0);
+      totalAmount -= couponAmount;
       // 确保总价不小于0
       if (totalAmount < 0) totalAmount = 0;
     }
     
+    // 减去积分抵扣金额
+    if (usePointsForDiscount.value && pointsToUse.value > 0) {
+      console.log('[Checkout] 积分抵扣金额:', pointsDiscountAmount.value);
+      totalAmount -= pointsDiscountAmount.value;
+      if (totalAmount < 0) totalAmount = 0;
+    }
+    
+    console.log('[Checkout] 最终总价:', totalAmount, '积分抵扣:', pointsDiscountAmount.value);
     return totalAmount;
+  });
+
+  // 监听subtotal变化，更新普通快递的actualFee
+  watch(subtotal, (newValue) => {
+    // 更新普通快递的actualFee
+    const standardShipping = shippingOptions.value.find(option => option.id === 1);
+    if (standardShipping) {
+      standardShipping.actualFee = newValue >= 99 ? 0 : 10;
+    }
+    
+    // 如果当前选择的是普通快递，也更新selectedShipping的actualFee
+    if (selectedShipping.value && selectedShipping.value.id === 1) {
+      selectedShipping.value.actualFee = newValue >= 99 ? 0 : 10;
+    }
   });
 
   // 初始化页面数据
@@ -249,8 +363,6 @@ export default function useCheckout() {
       console.log('[Checkout Debug] cartStore.hasSelectedItems:', cartStore.hasSelectedItems);
       console.log('[Checkout Debug] cartStore.cartItems长度:', cartStore.cartItems.length);
       
-      // 不再调用fetchAddresses，由AddressManager组件负责加载地址
-      
       // 尝试从localStorage读取已保存的结算商品信息
       let localStorageItems = [];
       try {
@@ -259,16 +371,22 @@ export default function useCheckout() {
           localStorageItems = JSON.parse(storedItems);
           console.log('[Checkout Debug] 从localStorage读取到商品:', localStorageItems.length);
           
-          // 如果cartStore中没有商品数据，尝试用localStorage的数据填充
-          if (cartStore.cartItems.length === 0) {
-            console.log('[Checkout Debug] cartStore.cartItems为空，尝试用localStorage数据填充');
-            // 这里我们不直接修改cartItems，因为它需要通过API获取，但可以设置selectedItems
-            if (localStorageItems.length > 0) {
-              const itemIds = localStorageItems.map(item => item.id || item.cartId);
-              cartStore.selectedItems = itemIds;
-              console.log('[Checkout Debug] 已设置cartStore.selectedItems:', itemIds);
+          // 验证localStorage数据有效性
+          if (!localStorageItems || !Array.isArray(localStorageItems) || localStorageItems.length === 0) {
+            console.warn('[Checkout Debug] localStorage中的checkoutItems无效或为空');
+          } else {
+            // 检查每个商品是否有必要的属性
+            const hasValidItems = localStorageItems.every(item => 
+              item && (item.id || item.cartId) && item.productId && 
+              (item.price || item.priceSnapshot) && item.quantity
+            );
+            
+            if (!hasValidItems) {
+              console.warn('[Checkout Debug] localStorage中的商品数据不完整');
             }
           }
+        } else {
+          console.warn('[Checkout Debug] localStorage中不存在checkoutItems数据');
         }
       } catch (e) {
         console.error('[Checkout Debug] 读取localStorage数据失败:', e);
@@ -277,21 +395,48 @@ export default function useCheckout() {
       // 判断购物车选中商品状态
       if (selectedItems.value.length === 0) {
         console.error('[Checkout Debug] 没有选中的商品，无法进行结算');
-        error.value = '购物车中没有选中的商品，请返回购物车选择商品后再进行结算';
+        error.value = '购物车中没有选中的商品，请返回购物车选择商品后再进行结算。如果已选择商品，请刷新购物车后再尝试结算。';
         return;
+      } else {
+        console.log('[Checkout Debug] 已选商品数量:', selectedItems.value.length);
+        
+        // 检查商品数据的完整性
+        const invalidItems = selectedItems.value.filter(item => 
+          !item.productId || !item.price || !item.quantity
+        );
+        
+        if (invalidItems.length > 0) {
+          console.warn('[Checkout Debug] 存在不完整的商品数据:', invalidItems);
+          // 不立即返回错误，尝试继续处理，但记录警告
+        }
+        
+        // 记录所选商品的ID，方便调试
+        const itemIds = selectedItems.value.map(item => item.productId);
+        console.log('[Checkout Debug] 已选商品ID:', itemIds.join(', '));
       }
       
       // 初始化配送方式和支付方式
-      if (shippingOptions.value.length > 0 && !selectedShipping.value) {
-        selectShipping(shippingOptions.value[0]);
-      }
-      
-      if (paymentMethods.value.length > 0 && !selectedPayment.value) {
-        selectPayment(paymentMethods.value[0]);
+      if (shippingOptions.value.length > 0) {
+        // 更新普通快递的actualFee
+        const standardShipping = shippingOptions.value.find(option => option.id === 1);
+        if (standardShipping) {
+          standardShipping.actualFee = subtotal.value >= 99 ? 0 : 10;
+        }
+        
+        // 如果没有选择配送方式，选择第一个
+        if (!selectedShipping.value) {
+          selectShipping(shippingOptions.value[0]);
+        } else if (selectedShipping.value.actualFee === undefined) {
+          // 如果已经有选择的配送方式但没有设置actualFee，则更新它
+          selectShipping(selectedShipping.value);
+        }
       }
       
       // 获取可用优惠券
-      fetchCoupons();
+      await fetchCoupons();
+      
+      // 获取用户积分
+      await fetchUserPoints();
       
       console.log('[Checkout Debug] 初始化完成，再次检查selectedItems:', selectedItems.value.length);
     } catch (err) {
@@ -691,11 +836,91 @@ export default function useCheckout() {
   // 选择配送方式
   function selectShipping(shipping) {
     selectedShipping.value = shipping;
+    
+    // 更新配送方式的实际运费（针对普通快递）
+    if (shipping.id === 1) {
+      // 普通快递，订单满99元免运费，否则10元运费
+      shipping.actualFee = subtotal.value >= 99 ? 0 : 10;
+    } else {
+      shipping.actualFee = shipping.fee;
+    }
   }
 
   // 选择支付方式
   function selectPayment(payment) {
     selectedPayment.value = payment;
+  }
+
+  // 添加获取用户积分的方法
+  async function fetchUserPoints() {
+    isLoadingPoints.value = true;
+    try {
+      // 先尝试从pointsStore获取积分
+      let points = pointsStore.userPoints;
+      
+      // 如果store中没有积分数据，则调用API获取
+      if (!points) {
+        const response = await getUserPoints();
+        if (response.code === 200 && response.data) {
+          points = response.data.points || 0;
+          console.log('[Checkout] 获取用户积分成功:', points);
+        } else {
+          console.error('[Checkout] 获取用户积分失败:', response.message);
+          points = 0;
+        }
+      }
+      
+      userPoints.value = points;
+    } catch (error) {
+      console.error('[Checkout] 获取用户积分异常:', error);
+      userPoints.value = 0;
+    } finally {
+      isLoadingPoints.value = false;
+    }
+  }
+
+  // 处理积分使用变化
+  function handleUsePointsChange(value) {
+    console.log('[Checkout] 积分开关状态变化, 原始值:', value);
+    usePointsForDiscount.value = value;
+    console.log('[Checkout] 积分开关状态已更新:', usePointsForDiscount.value);
+    
+    if (!usePointsForDiscount.value) {
+      // 取消使用积分时，清空积分相关值
+      pointsToUse.value = 0;
+      pointsInputValue.value = 0;
+      console.log('[Checkout] 已清空积分使用数量');
+    } else if (pointsInputValue.value > 0) {
+      // 开启使用积分且已有输入值时，更新积分使用数量
+      handlePointsInputChange(pointsInputValue.value);
+    } else {
+      // 默认使用最大可用积分数量
+      const maxUsablePoints = Math.min(userPoints.value, maxPointsUsage.value);
+      pointsInputValue.value = maxUsablePoints;
+      pointsToUse.value = maxUsablePoints;
+      console.log('[Checkout] 已设置默认最大积分:', maxUsablePoints);
+    }
+  }
+
+  // 处理积分输入变化
+  function handlePointsInputChange(value) {
+    console.log('[Checkout] 积分输入原始值:', value);
+    // 确保是数字
+    const numValue = parseInt(value) || 0;
+    
+    // 确保不超过用户拥有的积分
+    let points = Math.min(numValue, userPoints.value);
+    
+    // 确保不超过最大可用积分（5000）
+    points = Math.min(points, maxPointsUsage.value);
+    
+    // 确保是100的整数倍
+    points = Math.floor(points / 100) * 100;
+    
+    console.log('[Checkout] 积分输入处理后:', points);
+    
+    pointsInputValue.value = points;
+    pointsToUse.value = points;
   }
 
   // 提交订单
@@ -708,11 +933,6 @@ export default function useCheckout() {
     
     if (!selectedShipping.value) {
       ElMessage.warning('请选择配送方式');
-      return;
-    }
-    
-    if (!selectedPayment.value) {
-      ElMessage.warning('请选择支付方式');
       return;
     }
     
@@ -768,24 +988,60 @@ export default function useCheckout() {
         userId: userId,
         addressId: selectedAddress.value.addressId,
         cartIds: selectedItems.value.map(item => item.id || item.cartId || item.productId),
-        paymentMethod: selectedPayment.value.id,
+        paymentMethod: 'alipay', // 默认使用支付宝，用户可在支付页面更改
         couponId: selectedCoupon.value ? selectedCoupon.value.id : undefined,
-        remark: orderRemark.value || ''
+        remark: orderRemark.value || '',
+        shippingFee: shippingFee.value, // 添加运费
+        pointsUsed: usePointsForDiscount.value ? pointsToUse.value : 0 // 添加积分抵扣
       };
       
-      console.log('[Checkout Debug] 提交订单数据:', orderData);
+      // 增加详细日志，记录积分抵扣相关信息
+      console.log('[Checkout Debug] 提交订单前详细数据:', {
+        orderData,
+        积分抵扣: {
+          usePointsForDiscount: usePointsForDiscount.value,
+          pointsToUse: pointsToUse.value,
+          userPoints: userPoints.value,
+          pointsDiscountAmount: pointsDiscountAmount.value
+        },
+        订单金额: {
+          subtotal: subtotal.value,
+          shippingFee: shippingFee.value,
+          couponDiscount: selectedCoupon.value ? (selectedCoupon.value.value || selectedCoupon.value.amount || 0) : 0,
+          finalTotal: total.value
+        }
+      });
       
       // 调用订单创建API
       const result = await orderStore.createOrder(orderData);
+      
+      // 详细记录API返回的订单数据
+      console.log('[Checkout Debug] 订单创建返回详细结果:', {
+        orderResult: result,
+        orderId: result ? result.orderId : null,
+        orderNumber: result ? result.orderNumber : null,
+        totalAmount: result ? result.totalAmount : null,
+        actualAmount: result ? result.actualAmount : null,
+        pointsUsed: result ? result.pointsUsed : null,
+        pointsDiscount: result ? result.pointsDiscount : null
+      });
       
       if (!result) {
         throw new Error('订单创建失败，请稍后重试');
       }
       
-      // 订单创建成功，显示成功对话框
-      orderSuccess.value = true;
-      orderNumber.value = result.orderNumber;
-      orderResultVisible.value = true;
+      // 如果使用了积分，更新积分store中的积分数量
+      if (usePointsForDiscount.value && pointsToUse.value > 0) {
+        console.log('[Checkout Debug] 更新积分store, 减少积分:', pointsToUse.value);
+        // 检查返回的订单数据中是否有积分抵扣信息
+        console.log('[Checkout Debug] 订单中的积分抵扣信息:', {
+          pointsUsed: result.pointsUsed,
+          pointsDiscount: result.pointsDiscount,
+          请求的积分抵扣: orderData.pointsUsed
+        });
+        
+        pointsStore.SET_USER_POINTS(userPoints.value - pointsToUse.value);
+      }
       
       // 清空购物车中已选中的商品
       await cartStore.removeSelectedItems();
@@ -793,13 +1049,14 @@ export default function useCheckout() {
       // 清除localStorage中的数据
       localStorage.removeItem('checkoutItems');
       
+      // 直接跳转到支付页面
+      router.push(`/payment/${result.orderId || result.orderNumber}`);
+      
     } catch (err) {
       if (err === 'cancel') return;
       
       console.error('提交订单失败:', err);
-      orderSuccess.value = false;
-      orderError.value = err.message || '提交订单失败';
-      orderResultVisible.value = true;
+      ElMessage.error(err.message || '提交订单失败');
     } finally {
       isSubmitting.value = false;
     }
@@ -930,6 +1187,40 @@ export default function useCheckout() {
     }
   }
 
+  // 手动刷新购物车数据
+  async function reloadCartData() {
+    try {
+      // 显示loading消息
+      ElMessage({
+        message: '正在刷新购物车数据...',
+        type: 'info',
+        duration: 2000
+      });
+      
+      // 清除localStorage中的结算数据
+      localStorage.removeItem('checkoutItems');
+      console.log('[Checkout Debug] 已清除localStorage中的checkoutItems数据');
+      
+      // 重新加载购物车数据
+      console.log('[Checkout Debug] 开始重新加载购物车数据');
+      await cartStore.fetchCartItems();
+      console.log('[Checkout Debug] 购物车数据重新加载完成');
+      
+      // 重新初始化结算页面
+      await initCheckout();
+      
+      // 成功消息
+      ElMessage({
+        message: '购物车数据已刷新',
+        type: 'success',
+        duration: 2000
+      });
+    } catch (error) {
+      console.error('[Checkout Debug] 刷新购物车数据失败:', error);
+      ElMessage.error('刷新购物车数据失败，请稍后重试');
+    }
+  }
+
   return {
     // 状态
     isLoading,
@@ -960,6 +1251,7 @@ export default function useCheckout() {
     total,
     regionData,
     cartStore,
+    shippingFee,
     
     // 优惠券增强功能
     showAllCoupons,
@@ -967,6 +1259,18 @@ export default function useCheckout() {
     allCoupons,
     isLoadingAllCoupons,
     isCouponLoading,
+    
+    // 积分相关
+    userPoints,
+    usePointsForDiscount,
+    pointsToUse,
+    pointsInputValue,
+    isLoadingPoints,
+    pointsDiscountAmount,
+    maxPointsDiscount,
+    maxPointsUsage,
+    handleUsePointsChange,
+    handlePointsInputChange,
     
     // 方法
     initCheckout,
@@ -987,6 +1291,7 @@ export default function useCheckout() {
     retrySubmit,
     goBackToCart,
     refreshCheckout,
+    reloadCartData,
     
     // 优惠券增强函数
     handleCouponTabChange,

@@ -70,8 +70,8 @@
               :model-value="allSelected"
               @change="toggleSelectAll"
               :indeterminate="isIndeterminate"
-              :true-value="true" 
-              :false-value="false"
+              :true-value="1" 
+              :false-value="0"
             ></el-checkbox>
           </div>
           <div class="cart-column product-column">商品信息</div>
@@ -145,7 +145,7 @@
             
             <div class="cart-column action-column">
               <el-button 
-                type="text" 
+                link 
                 @click="removeItemFromCart(item)"
                 class="delete-btn"
               >删除</el-button>
@@ -160,11 +160,11 @@
               :model-value="allSelected"
               @change="toggleSelectAll"
               :indeterminate="isIndeterminate"
-              :true-value="true" 
-              :false-value="false"
+              :true-value="1" 
+              :false-value="0"
             >全选</el-checkbox>
-            <el-button type="text" @click="removeSelectedItems" :disabled="!hasSelectedItems">删除选中商品</el-button>
-            <el-button type="text" @click="clearCart" :disabled="cartItems.length === 0">清空购物车</el-button>
+            <el-button link @click="removeSelectedItems" :disabled="!hasSelectedItems">删除选中商品</el-button>
+            <el-button link @click="clearCart" :disabled="cartItems.length === 0">清空购物车</el-button>
           </div>
           
           <div class="cart-footer-right">

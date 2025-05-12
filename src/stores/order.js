@@ -228,15 +228,40 @@ export const useOrderStore = defineStore('order', {
           cartIds: orderData.cartIds,
           paymentMethod: orderData.paymentMethod,
           remark: orderData.remark || '',
-          couponId: orderData.couponId
+          couponId: orderData.couponId,
+          shippingFee: orderData.shippingFee || 0,
+          pointsUsed: orderData.pointsUsed || 0  // 添加积分抵扣参数
         };
         
-        console.log('创建订单请求数据:', requestData);
+        // 增加详细日志，确保积分参数被正确传递
+        console.log('创建订单请求数据 (详细):', {
+          原始数据: orderData,
+          处理后数据: requestData,
+          积分使用: {
+            原始积分值: orderData.pointsUsed,
+            传递积分值: requestData.pointsUsed
+          }
+        });
         
         const res = await createOrder(requestData);
         
+        // 详细记录API返回结果，特别关注积分抵扣部分
+        console.log('创建订单API返回 (详细):', {
+          code: res.code,
+          message: res.message,
+          data: res.data,
+          积分抵扣信息: res.data ? {
+            pointsUsed: res.data.pointsUsed,
+            pointsDiscount: res.data.pointsDiscount,
+            actualAmount: res.data.actualAmount,
+            totalAmount: res.data.totalAmount
+          } : '无数据'
+        });
+        
         if (res.code === 200) {
           ElMessage.success('订单创建成功');
+          // 打印完整的返回数据，包括积分抵扣信息
+          console.log('订单创建成功，返回数据:', res.data);
           return res.data;
         } else {
           ElMessage.error(res.message || '订单创建失败');

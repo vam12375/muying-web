@@ -103,7 +103,7 @@ const router = createRouter({
     {
       path: '/order/:orderId',
       name: 'order-detail',
-      component: () => import('../views/Orders.vue'),
+      component: () => import('../views/OrderDetail.vue'),
       meta: {
         title: '订单详情',
         requiresAuth: true

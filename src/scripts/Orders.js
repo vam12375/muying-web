@@ -291,6 +291,7 @@ export function useOrders() {
       'pending_payment': 'status-pending-payment',
       '待支付': 'status-pending-payment',
       'pending_shipment': 'status-pending-shipment',
+      'shipped': 'status-pending-receive',
       'pending_receive': 'status-pending-receive',
       'completed': 'status-completed',
       'cancelled': 'status-cancelled',
@@ -304,6 +305,7 @@ export function useOrders() {
     const classMap = {
       'pending_payment': 'progress-step-1',
       'pending_shipment': 'progress-step-2',
+      'shipped': 'progress-step-3',
       'pending_receive': 'progress-step-3',
       'completed': 'progress-step-4'
     }

@@ -101,7 +101,7 @@ export default function usePayment() {
         
         orderData.value = orderDetail;
         orderNo.value = orderDetail.orderNo || orderDetail.orderNumber;
-        orderAmount.value = orderDetail.totalAmount || orderDetail.actualAmount || 0;
+        orderAmount.value = orderDetail.actualAmount || orderDetail.totalAmount || 0;
         
         // 更安全的日期格式化
         try {
@@ -152,7 +152,7 @@ export default function usePayment() {
       
       orderData.value = mockOrderDetail;
       orderNo.value = mockOrderDetail.orderNo;
-      orderAmount.value = mockOrderDetail.totalAmount;
+      orderAmount.value = mockOrderDetail.actualAmount || mockOrderDetail.totalAmount;
       
       // 更安全的日期格式化
       try {

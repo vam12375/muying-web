@@ -80,7 +80,7 @@
               立即付款
             </el-button>
             <el-button 
-              v-if="order.status === 'pending_receive'" 
+              v-if="order.status === 'pending_receive' || order.status === 'shipped'" 
               type="success" 
               size="small"
               @click="confirmReceipt(order)"
@@ -201,6 +201,7 @@ const getStatusClass = (status) => {
     'pending_payment': 'status-pending',
     '待支付': 'status-pending',
     'pending_shipment': 'status-processing',
+    'shipped': 'status-shipped',
     'pending_receive': 'status-shipped',
     'completed': 'status-delivered',
     'cancelled': 'status-cancelled'

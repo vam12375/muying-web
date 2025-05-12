@@ -1,1113 +1,1221 @@
 <template>
-  <div class="product-detail-page bg-gray-50">
-    <div class="container mx-auto py-6 px-4">
-      <!-- 骨架屏加载状态 -->
-      <div v-if="loading" class="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div class="skeleton-gallery">
-            <div class="skeleton-image h-[400px] w-full bg-gray-200 animate-pulse rounded-lg mb-4"></div>
-            <div class="flex gap-2">
-              <div v-for="i in 4" :key="i" class="skeleton-thumb h-20 w-20 bg-gray-200 animate-pulse rounded"></div>
-            </div>
-          </div>
-          
-          <div class="skeleton-info space-y-4">
-            <div class="h-8 bg-gray-200 animate-pulse rounded w-3/4"></div>
-            <div class="h-4 bg-gray-200 animate-pulse rounded w-1/2"></div>
-            <div class="h-20 bg-gray-200 animate-pulse rounded"></div>
-            <div class="h-12 bg-gray-200 animate-pulse rounded w-2/3"></div>
-            <div class="h-12 bg-gray-200 animate-pulse rounded w-1/2"></div>
-            <div class="flex gap-3 mt-6">
-              <div class="h-10 bg-gray-200 animate-pulse rounded w-1/3"></div>
-              <div class="h-10 bg-gray-200 animate-pulse rounded w-1/3"></div>
-              <div class="h-10 bg-gray-200 animate-pulse rounded w-1/4"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 商品不存在 -->
-      <div v-else-if="!product" class="bg-white rounded-xl shadow-sm p-12 text-center">
-        <div class="max-w-md mx-auto">
-          <div class="text-gray-400 mb-4">
-            <el-icon :size="64"><Warning /></el-icon>
-          </div>
-          <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ loadError ? '加载商品信息失败' : '商品不存在或已下架' }}</h2>
-          <p class="text-gray-500 mb-8">
-            {{ loadError ? '网络错误或服务器异常，请稍后再试' : '抱歉，您查看的商品可能已经下架或不存在，请浏览其他商品' }}
-          </p>
-          <div class="flex justify-center gap-4">
-            <el-button 
-              v-if="loadError" 
-              type="primary" 
-              size="large" 
-              @click="retryFetchProductDetail"
-              :loading="loading"
-            >
-              <el-icon class="mr-2"><RefreshRight /></el-icon>
-              重新加载
-            </el-button>
-            <el-button type="primary" size="large" @click="goToProductList">
-              <el-icon class="mr-2"><Back /></el-icon>
-              返回商品列表
-            </el-button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 商品详情内容 -->
-      <div v-else>
-        <!-- 面包屑导航 -->
-        <div class="breadcrumb mb-4">
-          <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-            <el-breadcrumb-item :to="{ path: '/products' }">全部商品</el-breadcrumb-item>
-            <el-breadcrumb-item 
-              v-if="product.category" 
-              :to="{ path: `/products?category=${product.category.id}` }"
-            >
-              {{ product.category.name }}
-            </el-breadcrumb-item>
-            <el-breadcrumb-item>{{ product.name }}</el-breadcrumb-item>
-          </el-breadcrumb>
-        </div>
-        
-        <!-- 商品主体信息 -->
-        <div class="product-main bg-white rounded-xl shadow-sm p-6 mb-6 relative overflow-hidden">
-          <!-- 限时优惠倒计时 -->
-          <div v-if="product.promotion?.endTime && timeRemaining" class="flash-deal-banner mb-6 bg-gradient-to-r from-primary/10 to-primary/5 p-4 rounded-lg">
-            <div class="flex flex-col sm:flex-row items-center justify-between">
-              <div class="flash-deal-info flex items-center">
-                <el-icon class="text-primary text-xl mr-3"><Timer /></el-icon>
-                <div>
-                  <div class="text-primary font-bold text-lg">{{ product.promotion.title || '限时优惠' }}</div>
-                  <div class="text-gray-600 text-sm">{{ product.promotion.description || '抢购倒计时' }}</div>
-                </div>
-              </div>
-              <div class="flash-deal-timer mt-3 sm:mt-0">
-                <div class="countdown-box flex items-center">
-                  <div class="countdown-unit">
-                    <div class="countdown-value">{{ timeRemaining.days }}</div>
-                    <div class="countdown-label">天</div>
-                  </div>
-                  <div class="countdown-separator">:</div>
-                  <div class="countdown-unit">
-                    <div class="countdown-value">{{ timeRemaining.hours.toString().padStart(2, '0') }}</div>
-                    <div class="countdown-label">时</div>
-                  </div>
-                  <div class="countdown-separator">:</div>
-                  <div class="countdown-unit">
-                    <div class="countdown-value">{{ timeRemaining.minutes.toString().padStart(2, '0') }}</div>
-                    <div class="countdown-label">分</div>
-                  </div>
-                  <div class="countdown-separator">:</div>
-                  <div class="countdown-unit">
-                    <div class="countdown-value">{{ timeRemaining.seconds.toString().padStart(2, '0') }}</div>
-                    <div class="countdown-label">秒</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            <!-- 产品图片区 -->
-            <div class="product-gallery lg:col-span-2">
-              <div 
-                class="main-image mb-4 border border-gray-100 rounded-xl overflow-hidden relative"
-                ref="galleryContainer"
-                @touchstart="handleTouchStart"
-                @touchmove="handleTouchMove"
-                @touchend="handleTouchEnd"
-              >
-                <div
-                  class="image-wrapper cursor-zoom-in"
-                  @click="openImageViewer(currentImageIndex)"
-                  role="button"
-                  tabindex="0"
-                  aria-label="点击查看大图"
-                  @keydown.enter="openImageViewer(currentImageIndex)"
-                >
-                  <el-image
-                    :src="currentImage"
-                    fit="contain"
-                    class="w-full product-main-image transition-all duration-300"
-                    :initial-index="currentImageIndex"
-                    style="height: 400px"
-                    loading="lazy"
-                    @mousemove="handleImageZoom"
-                    ref="productImage"
-                  >
-                    <template #placeholder>
-                      <div class="flex justify-center items-center h-full bg-gray-50">
-                        <div class="spinner"></div>
-                      </div>
-                    </template>
-                    <template #error>
-                      <div class="flex justify-center items-center h-full bg-gray-100">
-                        <el-icon class="text-gray-400" :size="24"><Picture /></el-icon>
-                        <span class="ml-2 text-gray-400">图片加载失败</span>
-                      </div>
-                    </template>
-                  </el-image>
-                  <div class="zoom-lens" v-show="isZooming" ref="zoomLens"></div>
-                  <div class="zoomed-image" v-show="isZooming" ref="zoomedImage"></div>
-                </div>
-                
-                <!-- 商品标签 -->
-                <div class="absolute top-3 left-3 z-10 flex flex-wrap gap-2">
-                  <div v-if="product.isNew" class="product-tag new-tag">
-                    新品
-                  </div>
-                  <div v-if="discountPercentage > 0" class="product-tag discount-tag">
-                    {{ discountPercentage }}% OFF
-                  </div>
-                  <div v-if="isStockLow && !isOutOfStock" class="product-tag stock-tag">
-                    库存紧张
-                  </div>
-                  <div v-if="isOutOfStock" class="product-tag outofstock-tag">
-                    已售罄
-                  </div>
-                </div>
-                
-                <!-- 图片控制按钮 -->
-                <div class="absolute top-3 right-3 z-10 flex space-x-2">
-                  <el-button
-                    circle
-                    plain
-                    class="bg-white/70 backdrop-blur-sm hover:bg-white"
-                    @click="openImageViewer(currentImageIndex)"
-                  >
-                    <el-icon><View /></el-icon>
-                  </el-button>
-                  <el-button
-                    circle
-                    plain
-                    class="bg-white/70 backdrop-blur-sm hover:bg-white"
-                    @click="toggleZoomMode"
-                  >
-                    <el-icon><ZoomIn /></el-icon>
-                  </el-button>
-                </div>
-              </div>
-              
-              <!-- 缩略图列表 -->
-              <div class="product-thumbnail-list">
-                <div 
-                  v-for="(img, i) in product.images" 
-                  :key="i" 
-                  class="thumbnail-item"
-                  :class="{ active: currentImageIndex === i }"
-                  @click="currentImageIndex = i"
-                  @keydown.enter="currentImageIndex = i"
-                  tabindex="0"
-                  role="button"
-                  :aria-label="`选择图片 ${i + 1}`"
-                  :aria-selected="currentImageIndex === i"
-                >
-                  <img :src="img" :alt="`${product.title} - 图片 ${i + 1}`" />
-                </div>
-              </div>
-              
-              <!-- 360度查看按钮 -->
-              <div v-if="product.has360View" class="view-360-wrapper mt-4 text-center">
-                <el-button type="primary" plain class="view-360-btn" @click="open360View">
-                  <el-icon class="mr-2"><View /></el-icon>
-                  360° 全方位查看
-                </el-button>
-              </div>
-            </div>
-            
-            <!-- 产品信息区 -->
-            <div class="product-info flex flex-col lg:col-span-3">
-              <h1 class="text-2xl font-bold text-gray-800 mb-2 leading-tight">{{ product.name }}</h1>
-              
-              <div class="product-brief text-gray-500 mb-6">{{ product.brief }}</div>
-              
-              <!-- 主要特点 -->
-              <div v-if="product.features?.length" class="product-features mb-6">
-                <h3 class="text-base font-semibold text-gray-700 mb-3">产品特点</h3>
-                <ul class="feature-list grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <li 
-                    v-for="(feature, i) in product.features" 
-                    :key="i" 
-                    class="flex items-start gap-2"
-                  >
-                    <el-icon class="text-primary mt-1"><Check /></el-icon>
-                    <span>{{ feature }}</span>
-                  </li>
-                </ul>
-              </div>
-              
-              <!-- 价格区块 -->
-              <div class="product-price-box mb-6 bg-gray-50 px-5 py-6 rounded-xl">
-                <div class="flex items-baseline gap-3 mb-3">
-                  <span class="text-3xl font-bold text-primary">¥{{ formatPrice(product.price) }}</span>
-                  <span v-if="product.originalPrice > product.price" class="text-gray-400 line-through">
-                    ¥{{ formatPrice(product.originalPrice) }}
-                  </span>
-                  <span v-if="discountPercentage > 0" class="discount-badge">
-                    {{ discountPercentage }}% 折扣
-                  </span>
-                </div>
-                
-                <div class="flex flex-wrap gap-6 text-sm">
-                  <div class="sales-count text-gray-600 flex items-center gap-1">
-                    <el-icon><ShoppingBag /></el-icon>
-                    <span>销量: {{ product.salesCount }}</span>
-                  </div>
-                  <div class="reviews text-gray-600 flex items-center gap-1">
-                    <el-icon><ChatDotRound /></el-icon>
-                    <span>评价: {{ product.reviewCount }}</span>
-                    <div class="ml-1">
-                      <el-rate
-                        v-model="product.rating"
-                        disabled
-                        text-color="#ff9900"
-                      />
-                    </div>
-                  </div>
-                  <div v-if="product.wishlistCount" class="wishlist-count text-gray-600 flex items-center gap-1">
-                    <el-icon><Star /></el-icon>
-                    <span>收藏: {{ product.wishlistCount }}</span>
-                  </div>
-                </div>
-                
-                <!-- 促销信息 -->
-                <div v-if="product.promotions?.length" class="promotions-wrapper mt-4 p-3 bg-white rounded-lg border border-dashed border-primary/30">
-                  <div class="promotion-title flex items-center mb-2">
-                    <el-icon class="text-primary mr-1"><Discount /></el-icon>
-                    <span class="text-primary font-medium">促销优惠</span>
-                  </div>
-                  <div class="promotions-list">
-                    <div 
-                      v-for="(promo, i) in product.promotions" 
-                      :key="i"
-                      class="promotion-item flex items-center py-1"
-                    >
-                      <span class="promotion-tag mr-2">{{ promo.type }}</span>
-                      <span class="promotion-desc">{{ promo.description }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 库存状态提示 -->
-              <div v-if="isStockLow && !isOutOfStock" class="stock-warning mb-4 text-sm">
-                <el-alert
-                  type="warning"
-                  :closable="false"
-                  show-icon
-                >
-                  <template #title>
-                    <span class="font-medium">库存紧张！仅剩 {{ product.stock }} 件</span>
-                  </template>
-                </el-alert>
-              </div>
-              
-              <div v-if="isOutOfStock" class="stock-warning mb-4 text-sm">
-                <el-alert
-                  type="error"
-                  :closable="false"
-                  show-icon
-                >
-                  <template #title>
-                    <span class="font-medium">商品已售罄，您可以先收藏，等待到货通知</span>
-                  </template>
-                </el-alert>
-              </div>
-              
-              <!-- 商品属性选择 -->
-              <div class="product-attrs mb-6">
-                <div 
-                  v-for="(attr, index) in product.attributes" 
-                  :key="index" 
-                  class="attr-group mb-5"
-                  role="radiogroup"
-                  :aria-labelledby="`attr-name-${index}`"
-                >
-                  <div 
-                    class="attr-name text-gray-700 mb-2 flex items-center"
-                    :id="`attr-name-${index}`"
-                  >
-                    {{ attr.name }}
-                    <span v-if="attr.required" class="text-red-500 ml-1">*</span>
-                  </div>
-                  <div class="attr-values flex flex-wrap gap-3">
-                    <div
-                      v-for="value in attr.values"
-                      :key="value.id"
-                      class="attr-value-item cursor-pointer border rounded-lg px-4 py-2 text-sm transition-all duration-200"
-                      :class="{
-                        'attr-selected border-primary text-primary bg-primary bg-opacity-5': selectedAttrs[attr.name] === value.id,
-                        'border-gray-200 text-gray-700 hover:border-gray-400': selectedAttrs[attr.name] !== value.id
-                      }"
-                      @click="selectedAttrs[attr.name] = value.id"
-                      role="radio"
-                      :aria-checked="selectedAttrs[attr.name] === value.id"
-                      tabindex="0"
-                      @keydown.enter="selectedAttrs[attr.name] = value.id"
-                      @keydown.space.prevent="selectedAttrs[attr.name] = value.id"
-                    >
-                      {{ value.name }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 购买数量 -->
-              <div class="product-quantity flex items-center mb-6">
-                <div class="text-gray-700 mr-4">购买数量</div>
-                <el-input-number 
-                  v-model="quantity" 
-                  :min="1" 
-                  :max="product.stock"
-                  :disabled="isOutOfStock"
-                />
-                <div class="text-gray-500 ml-4">
-                  <span v-if="!isOutOfStock">库存 {{ product.stock }} 件</span>
-                  <span v-else class="text-red-500">无货</span>
-                </div>
-              </div>
-              
-              <!-- 购买按钮 -->
-              <div class="product-actions flex flex-wrap gap-4 mt-auto">
-                <el-button 
-                  type="primary" 
-                  size="large" 
-                  :icon="ShoppingCart"
-                  :disabled="isOutOfStock"
-                  :loading="isAddingToCart"
-                  @click="addToCart"
-                  class="action-btn add-cart-btn flex-1"
-                >
-                  加入购物车
-                </el-button>
-                <el-button 
-                  type="danger" 
-                  size="large"
-                  :disabled="isOutOfStock"
-                  @click="buyNow"
-                  class="action-btn buy-now-btn flex-1"
-                >
-                  立即购买
-                </el-button>
-                <el-button
-                  :icon="Star"
-                  size="large"
-                  :type="product.isFavorite ? 'warning' : ''"
-                  :loading="isFavoriteLoading"
-                  @click="toggleFavorite"
-                  class="action-btn"
-                >
-                  {{ product.isFavorite ? '已收藏' : '收藏' }}
-                </el-button>
-                <el-button
-                  :icon="Share"
-                  size="large"
-                  @click="shareProduct"
-                  class="action-btn"
-                >
-                  分享
-                </el-button>
-              </div>
-              
-              <!-- 配送信息 -->
-              <div class="shipping-info mt-6 pt-4 border-t border-gray-100">
-                <div class="text-base font-medium text-gray-700 mb-3">配送信息</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div class="shipping-location flex items-center">
-                    <el-icon class="text-gray-500 mr-2"><Location /></el-icon>
-                    <span class="text-gray-700 mr-2">配送至:</span>
-                    <el-button type="text" class="p-0 text-primary">选择收货地址</el-button>
-                  </div>
-                  <div class="shipping-fee flex items-center">
-                    <el-icon class="text-gray-500 mr-2"><Van /></el-icon>
-                    <span class="text-gray-700 mr-2">配送费用:</span>
-                    <span class="text-primary font-medium">包邮</span>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 服务承诺 -->
-              <div class="product-services mt-8 flex flex-wrap gap-4 text-sm text-gray-500 border-t border-gray-100 pt-4">
-                <div class="service-item flex items-center">
-                  <el-icon class="mr-1"><Check /></el-icon>
-                  <span>正品保证</span>
-                </div>
-                <div class="service-item flex items-center">
-                  <el-icon class="mr-1"><Ship /></el-icon>
-                  <span>全场包邮</span>
-                </div>
-                <div class="service-item flex items-center">
-                  <el-icon class="mr-1"><RefreshRight /></el-icon>
-                  <span>7天无理由退换</span>
-                </div>
-                <div class="service-item flex items-center cursor-pointer" @click="contactCustomerService">
-                  <el-icon class="mr-1"><MessageBox /></el-icon>
-                  <span class="hover:text-primary">联系客服</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 分享弹窗 -->
-        <el-dialog
-          v-model="isShareDialogVisible"
-          title="分享商品"
-          width="320px"
-          destroy-on-close
-        >
-          <div class="text-center pb-4">
-            <p class="mb-4 text-gray-600">选择分享方式</p>
-            <div class="share-buttons grid grid-cols-4 gap-4">
-              <div 
-                v-for="item in shareOptions" 
-                :key="item.name"
-                class="share-btn flex flex-col items-center cursor-pointer transition-all hover:text-primary"
-                @click="handleShare(item.type)"
-              >
-                <el-icon :size="30" class="mb-2">
-                  <component :is="item.icon" />
-                </el-icon>
-                <span class="text-xs">{{ item.name }}</span>
-              </div>
-            </div>
-            
-            <div class="mt-6">
-              <p class="text-sm text-gray-500 mb-2">商品链接</p>
-              <div class="flex rounded-lg overflow-hidden">
-                <div class="flex-1 bg-gray-100 px-3 py-2 text-xs text-gray-500 truncate">
-                  {{ productLink }}
-                </div>
-                <el-button 
-                  type="primary" 
-                  :icon="CopyDocument"
-                  @click="copyProductLink"
-                >复制</el-button>
-              </div>
-            </div>
-          </div>
-        </el-dialog>
-        
-        <!-- 商品详情和评价 tabs -->
-        <div class="product-tabs bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-          <el-tabs type="border-card" class="product-detail-tabs">
-            <el-tab-pane label="商品详情" name="detail">
-              <div class="p-6">
-                <!-- 商品参数 -->
-                <div v-if="product.specifications && product.specifications.length > 0">
-                  <h3 class="text-xl font-bold mb-4">商品参数</h3>
-                  <div class="specs-table mb-8">
-                    <el-descriptions :column="2" border>
-                      <el-descriptions-item 
-                        v-for="(spec, index) in product.specifications" 
-                        :key="index" 
-                        :label="spec.name"
-                      >
-                        {{ spec.value }}
-                      </el-descriptions-item>
-                    </el-descriptions>
-                  </div>
-                </div>
-                
-                <!-- 商品详情内容 -->
-                <h3 class="text-xl font-bold mb-4">商品详情</h3>
-                <div class="rich-text-content" v-html="product.description"></div>
-              </div>
-            </el-tab-pane>
-            
-            <el-tab-pane :label="`商品评价(${product.reviewCount || 0})`" name="reviews">
-              <div class="p-6">
-                <!-- 评价统计信息 -->
-                <div v-if="reviews.length > 0" class="review-summary flex items-center mb-6">
-                  <div class="review-stats text-center pr-8 border-r">
-                    <div class="text-3xl font-bold text-primary">{{ product.rating?.toFixed(1) || '5.0' }}</div>
-                    <div class="text-sm text-gray-500">综合评分</div>
-                    <div class="mt-2">
-                      <el-rate v-model="product.rating" disabled show-score text-color="#ff9900" />
-                    </div>
-                  </div>
-                  
-                  <div class="review-tags flex-1 ml-8">
-                    <div class="text-gray-700 mb-2">大家都在说：</div>
-                    <div class="tag-cloud flex flex-wrap gap-2">
-                      <el-tag 
-                        v-for="(tag, index) in product.reviewTags || []" 
-                        :key="index"
-                        :type="reviewTagFilter === tag.name ? 'primary' : ''"
-                        :effect="reviewTagFilter === tag.name ? 'dark' : 'plain'"
-                        class="cursor-pointer transition-all duration-200"
-                        @click="filterReviewsByTag(tag.name)"
-                        role="button"
-                        tabindex="0"
-                        :aria-pressed="reviewTagFilter === tag.name"
-                        @keydown.enter="filterReviewsByTag(tag.name)"
-                      >
-                        {{ tag.name }} ({{ tag.count }})
-                      </el-tag>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- 评价过滤选项 -->
-                <div class="reviews-filter mb-4 flex flex-wrap items-center justify-between">
-                  <el-radio-group v-model="reviewFilter" size="small" @change="handleReviewFilterChange">
-                    <el-radio-button label="all">全部评价</el-radio-button>
-                    <el-radio-button label="good">好评</el-radio-button>
-                    <el-radio-button label="neutral">中评</el-radio-button>
-                    <el-radio-button label="bad">差评</el-radio-button>
-                    <el-radio-button label="hasImage">有图</el-radio-button>
-                  </el-radio-group>
-                  
-                  <el-button 
-                    v-if="reviewTagFilter" 
-                    size="small" 
-                    plain 
-                    @click="reviewTagFilter = ''; fetchReviews()"
-                  >
-                    <el-icon class="mr-1"><MoreFilled /></el-icon>
-                    清除标签筛选
-                  </el-button>
-                </div>
-                
-                <!-- 评价加载状态 -->
-                <div v-if="reviewLoading" class="py-12 text-center">
-                  <div class="spinner mx-auto mb-4"></div>
-                  <p class="text-gray-500">正在加载评价...</p>
-                </div>
-                
-                <!-- 评价加载错误 -->
-                <div v-else-if="reviewLoadError" class="py-12 text-center">
-                  <el-result
-                    icon="error"
-                    title="评价加载失败"
-                    sub-title="由于网络原因，评价数据加载失败"
-                  >
-                    <template #extra>
-                      <el-button 
-                        type="primary"
-                        @click="retryFetchReviews"
-                        :loading="reviewLoading"
-                      >
-                        <el-icon class="mr-1"><RefreshRight /></el-icon>
-                        重新加载
-                      </el-button>
-                    </template>
-                  </el-result>
-                </div>
-                
-                <!-- 空评价状态 -->
-                <div v-else-if="reviews.length === 0" class="py-12 text-center">
-                  <el-empty description="暂无相关评价"></el-empty>
-                </div>
-                
-                <!-- 评价列表 -->
-                <div v-else class="reviews-list divide-y">
-                  <div 
-                    v-for="(review, index) in reviews" 
-                    :key="index"
-                    class="review-item py-6"
-                  >
-                    <div class="review-header flex justify-between mb-3">
-                      <div class="user-info flex items-center">
-                        <el-avatar :size="40" :src="review.avatar"></el-avatar>
-                        <div class="ml-3">
-                          <div class="user-name text-gray-800">{{ review.username }}</div>
-                          <div class="review-time text-gray-400 text-sm">{{ review.createTime }}</div>
-                        </div>
-                      </div>
-                      <div class="review-rating">
-                        <el-rate v-model="review.rating" disabled text-color="#ff9900" />
-                      </div>
-                    </div>
-                    
-                    <div class="review-attrs text-sm text-gray-500 mb-3">
-                      {{ getSelectedAttrsText(review.productAttrs) }}
-                    </div>
-                    
-                    <div class="review-content text-gray-700 mb-4">
-                      {{ review.content }}
-                    </div>
-                    
-                    <div v-if="review.images && review.images.length > 0" class="review-images flex flex-wrap gap-2 mb-4">
-                      <div 
-                        v-for="(img, imgIndex) in review.images" 
-                        :key="imgIndex"
-                        class="review-image-item w-24 h-24 cursor-pointer overflow-hidden rounded-lg"
-                        @click="showReviewImage(review.images, imgIndex)"
-                      >
-                        <el-image 
-                          :src="img" 
-                          fit="cover" 
-                          class="w-full h-full transition-all duration-300 hover:scale-110" 
-                          loading="lazy"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div v-if="review.replyContent" class="shop-reply bg-gray-50 p-4 rounded-lg text-sm mt-3">
-                      <div class="font-medium text-gray-800 mb-1">商家回复：</div>
-                      <div class="text-gray-600">{{ review.replyContent }}</div>
-                    </div>
-                    
-                    <!-- 评价操作按钮 -->
-                    <div class="review-actions flex items-center gap-4 mt-4 text-sm text-gray-500">
-                      <div 
-                        class="review-action flex items-center cursor-pointer hover:text-primary transition-colors"
-                        @click="handleReviewLike(review)"
-                      >
-                        <el-icon :class="{'text-primary': review.isLiked}" class="mr-1">
-                          <Star />
-                        </el-icon>
-                        <span>有用({{ review.likeCount || 0 }})</span>
-                      </div>
-                      <div 
-                        class="review-action flex items-center cursor-pointer hover:text-primary transition-colors"
-                        @click="handleReviewComment(review)"
-                      >
-                        <el-icon class="mr-1"><ChatDotRound /></el-icon>
-                        <span>回复</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- 评价分页 -->
-                <div v-if="reviewTotal > 0" class="pagination-container mt-6 flex justify-center">
-                  <el-pagination
-                    v-model:current-page="reviewPage"
-                    v-model:page-size="reviewPageSize"
-                    :page-sizes="[5, 10, 20]"
-                    layout="total, sizes, prev, pager, next, jumper"
-                    :total="reviewTotal"
-                    @size-change="handleReviewSizeChange"
-                    @current-change="handleReviewPageChange"
-                    background
-                  />
-                </div>
-              </div>
-            </el-tab-pane>
+  <div class="product-detail" v-loading="loading">
+    <el-breadcrumb separator="/">
+      <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+      <el-breadcrumb-item :to="{ path: '/products' }">商品列表</el-breadcrumb-item>
+      <el-breadcrumb-item>商品详情</el-breadcrumb-item>
+    </el-breadcrumb>
 
-            <el-tab-pane label="常见问题" name="faq">
-              <div class="p-6">
-                <!-- FAQ内容 -->
-                <div v-if="product.faqs && product.faqs.length > 0">
-                  <h3 class="text-xl font-bold mb-6">常见问题</h3>
-                  <el-collapse class="mb-6 faq-collapse">
-                    <el-collapse-item 
-                      v-for="(faq, index) in product.faqs" 
-                      :key="index" 
-                      :title="faq.question"
-                      :name="index"
-                    >
-                      <div class="faq-answer">{{ faq.answer }}</div>
-                    </el-collapse-item>
-                  </el-collapse>
-                  
-                  <!-- 未解决问题区域 -->
-                  <div class="ask-question mt-8 pt-6 border-t border-gray-100">
-                    <h4 class="text-lg font-semibold mb-4">还有疑问?</h4>
-                    <el-input
-                      v-model="newQuestion"
-                      type="textarea"
-                      rows="3"
-                      placeholder="请输入您的问题，我们将尽快回复..."
-                      class="mb-4"
-                    ></el-input>
-                    <div class="flex justify-end">
-                      <el-button type="primary" @click="submitQuestion" :loading="isSubmittingQuestion">
-                        <el-icon class="mr-2"><QuestionFilled /></el-icon>
-                        提交问题
-                      </el-button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div v-else class="py-12 text-center">
-                  <el-empty description="暂无相关问答"></el-empty>
-                </div>
+    <div v-if="!product && !loading" class="error-container">
+      <el-empty description="商品信息加载失败" :image-size="200">
+        <template #description>
+          <p>该商品可能不存在或已下架</p>
+        </template>
+        <el-button type="primary" @click="$router.push('/products')">返回商品列表</el-button>
+      </el-empty>
+    </div>
+
+    <el-row :gutter="40" v-if="product">
+      <!-- 商品图片展示 -->
+      <el-col :span="12">
+        <div class="product-gallery">
+          <el-image 
+            :src="getImageUrl(product.goods_img || product.goodsImg)"
+            fit="contain"
+            class="main-image"
+            lazy
+            :preview-src-list="previewImages"
+            @error="handleImageError">
+            <template #error>
+              <div class="image-error">
+                <el-icon><Picture /></el-icon>
+                <span>加载失败</span>
               </div>
-            </el-tab-pane>
-          </el-tabs>
-        </div>
-        
-        <!-- 相关推荐 -->
-        <div v-if="relatedProducts.length > 0" class="related-products bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div class="section-header flex items-center justify-between mb-5">
-            <h3 class="text-xl font-bold text-gray-800">相关推荐</h3>
-            <el-button plain size="small" @click="$router.push('/products')">
-              查看更多
-              <el-icon class="ml-1"><ArrowRight /></el-icon>
-            </el-button>
-          </div>
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <product-card
-              v-for="(item, index) in relatedProducts"
+            </template>
+            <template #placeholder>
+              <div class="image-placeholder">
+                <el-icon><Loading /></el-icon>
+              </div>
+            </template>
+          </el-image>
+          <div class="image-list" v-if="productImages.length">
+            <el-image
+              v-for="(img, index) in productImages"
               :key="index"
-              :product="item"
+              :src="getImageUrl(img)"
+              @click="changeMainImage(img)"
+              class="thumb-image"
             />
           </div>
         </div>
-        
-        <!-- 猜你喜欢 -->
-        <div v-if="recommendedProducts.length > 0" class="recommended-products bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div class="section-header flex items-center justify-between mb-5">
-            <h3 class="text-xl font-bold text-gray-800">猜你喜欢</h3>
-            <div class="carousel-controls flex gap-2">
-              <el-button 
-                circle 
-                plain 
-                @click="prevRecommended" 
-                :disabled="recommendedPageIndex <= 0"
-              >
-                <el-icon><ArrowLeft /></el-icon>
-              </el-button>
-              <el-button 
-                circle 
-                plain 
-                @click="nextRecommended" 
-                :disabled="recommendedPageIndex >= Math.ceil(recommendedProducts.length / recommendedPageSize) - 1"
-              >
-                <el-icon><ArrowRight /></el-icon>
-              </el-button>
+      </el-col>
+
+      <!-- 商品信息 -->
+      <el-col :span="12">
+        <div class="product-info">
+          <h1 class="product-name">{{ product.productName || product.goodsName || product.goods_name }}</h1>
+          <div class="product-brief">{{ product.productDetail || product.goodsDetail || product.goods_detail }}</div>
+          
+          <div class="price-section">
+            <div class="current-price">
+              <span class="label">价格</span>
+              <span class="price">¥{{ Number(product.priceNew || product.price_new || product.price || 0).toFixed(2) }}</span>
+              <span class="original-price" v-if="product.priceOld || product.price_old">
+                ¥{{ Number(product.priceOld || product.price_old || product.originalPrice || 0).toFixed(2) }}
+              </span>
+              <el-tag v-if="product.discount || calculateDiscount() > 0" type="danger" size="small" class="discount-tag">
+                {{ calculateDiscount() }}折
+              </el-tag>
+            </div>
+            <div class="rating-section">
+              <el-rate v-model="product.rating" disabled show-score></el-rate>
+              <span class="review-count">({{ product.reviewCount || product.review_count || 0 }}条评价)</span>
             </div>
           </div>
           
-          <div class="carousel-container overflow-hidden relative">
-            <div 
-              class="carousel-track flex transition-transform duration-500" 
-              :style="{ transform: `translateX(-${recommendedPageIndex * 100}%)` }"
-            >
-              <div 
-                v-for="(page, pageIndex) in recommendedPages" 
-                :key="pageIndex"
-                class="carousel-page w-full flex-shrink-0 flex gap-4"
-              >
-                <product-card
-                  v-for="(item, index) in page"
-                  :key="index"
-                  :product="item"
-                  class="flex-1 min-w-0"
-                />
+          <div class="promotion-section" v-if="product.promotions && product.promotions.length">
+            <span class="label">促销</span>
+            <div class="promotion-content">
+              <div v-for="(promo, index) in product.promotions" :key="index" class="promo-item">
+                <el-tag size="small" class="promo-tag" type="danger">{{ promo.type }}</el-tag>
+                <span class="promo-text">{{ promo.desc }}</span>
+              </div>
+              <div class="promo-item" v-if="!product.promotions || product.promotions.length === 0">
+                <el-tag size="small" class="promo-tag" type="danger">限时</el-tag>
+                <span class="promo-text">限时折后价¥{{ Number(product.price_new || product.priceNew || product.price || 0).toFixed(2) }}</span>
               </div>
             </div>
-            
-            <div class="carousel-indicators flex justify-center gap-2 mt-6">
-              <div 
-                v-for="(_, index) in recommendedPages" 
-                :key="index"
-                class="carousel-dot w-2 h-2 rounded-full transition-all cursor-pointer"
-                :class="{ 'bg-primary scale-125': recommendedPageIndex === index, 'bg-gray-300': recommendedPageIndex !== index }"
-                @click="recommendedPageIndex = index"
-              ></div>
+          </div>
+          
+          <div class="stock-section">
+            <span class="label">配送</span>
+            <span class="delivery-info">
+              <i class="el-icon"><Van /></i> 
+              48小时内发货，预计3月31日送达
+            </span>
+          </div>
+
+          <div class="stock-section">
+            <span class="label">库存</span>
+            <span class="stock">{{ product.stock }}件</span>
+            <span class="support">销量: {{ product.sales || 0 }}</span>
+            <el-tag v-if="product.stock <= 5 && product.stock > 0" type="warning" size="small">库存紧张</el-tag>
+            <el-tag v-if="product.stock <= 0" type="danger" size="small">已售罄</el-tag>
+          </div>
+
+          <div class="service-section">
+            <div class="service-item">
+              <el-icon><Van /></el-icon>
+              <span>全场包邮</span>
+            </div>
+            <div class="service-item">
+              <el-icon><GoodsFilled /></el-icon>
+              <span>正品保证</span>
+            </div>
+            <div class="service-item">
+              <el-icon><RefreshRight /></el-icon>
+              <span>七天无理由退换</span>
             </div>
           </div>
-        </div>
-        
-        <!-- 相关推荐加载错误 -->
-        <div v-else-if="relatedLoadError" class="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <el-result
-            icon="error"
-            title="相关推荐加载失败"
-            sub-title="由于网络原因，相关商品加载失败"
-          >
-            <template #extra>
-              <el-button 
-                type="primary"
-                @click="retryFetchRelated"
-                :loading="relatedProductsLoading"
-              >
-                <el-icon class="mr-1"><RefreshRight /></el-icon>
-                重新加载
-              </el-button>
-            </template>
-          </el-result>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 最近浏览记录 -->
-    <div v-if="recentlyViewed.length > 0" class="fixed right-4 bottom-24 z-10">
-      <div class="bg-white rounded-lg shadow-md p-3 w-56">
-        <div class="text-gray-700 font-medium mb-2 flex items-center justify-between">
-          <span class="flex items-center">
-            <el-icon class="mr-1"><Timer /></el-icon>
-            最近浏览
-          </span>
-          <el-button 
-            type="text" 
-            size="small" 
-            @click="isRecentViewedOpen = !isRecentViewedOpen"
-          >
-            <el-icon>
-              <ArrowRight v-if="!isRecentViewedOpen" />
-              <arrow-down v-else />
-            </el-icon>
-          </el-button>
-        </div>
-        
-        <div v-if="isRecentViewedOpen" class="recent-products">
-          <div 
-            v-for="item in recentlyViewed.slice(0, 4)" 
-            :key="item.id"
-            class="recent-item flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-all"
-            v-show="item.id !== product?.id"
-            @click="goToProduct(item.id)"
-          >
-            <div class="w-10 h-10 flex-shrink-0 mr-2">
-              <el-image 
-                :src="item.image" 
-                fit="cover" 
-                class="w-full h-full rounded" 
-                loading="lazy"
-              >
-                <template #error>
-                  <div class="h-full w-full flex items-center justify-center bg-gray-100 rounded">
-                    <el-icon class="text-gray-400" :size="14"><Picture /></el-icon>
-                  </div>
-                </template>
-              </el-image>
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="text-xs text-gray-800 truncate">{{ item.name }}</div>
-              <div class="text-xs text-primary font-medium">¥{{ item.price }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 回到顶部按钮 -->
-    <el-backtop right="40" bottom="80" />
-    
-    <!-- 图片查看器 -->
-    <el-image-viewer
-      v-if="isImageViewerVisible"
-      :url-list="product?.images || []"
-      :initial-index="imageViewerIndex"
-      :hide-on-click-modal="false"
-      :zoom-rate="1.2"
-      @close="isImageViewerVisible = false"
-    />
-    
-    <!-- 悬浮购买栏 -->
-    <div 
-      v-if="product && !isOutOfStock" 
-      class="fixed-bottom-bar" 
-      :class="{ 'show': showFixedBar }"
-    >
-      <div class="container mx-auto px-4">
-        <div class="flex items-center justify-between py-3">
-          <div class="product-info-summary hidden md:flex items-center">
-            <div class="w-12 h-12 rounded-md overflow-hidden mr-3">
-              <img :src="product.images && product.images[0] ? `/products/${product.images[0].replace(/^.*[\\\/]/, '')}` : ''" alt="" class="w-full h-full object-cover">
-            </div>
-            <div>
-              <div class="text-gray-800 font-medium truncate max-w-xs">{{ product.name }}</div>
-              <div class="text-primary font-bold">¥{{ formatPrice(product.price) }}</div>
+
+          <div class="sku-section" v-if="product.specs && product.specs.length > 0">
+            <div v-for="(spec, index) in product.specs" :key="index" class="spec-item">
+              <div class="spec-name">{{ spec.name }}</div>
+              <div class="spec-values">
+                <el-radio-group v-model="selectedSpecs[spec.name]">
+                  <el-radio-button 
+                    v-for="value in spec.values" 
+                    :key="value.id || value"
+                    :label="value.id || value"
+                    :disabled="value.disabled">
+                    {{ value.name || value }}
+                  </el-radio-button>
+                </el-radio-group>
+              </div>
             </div>
           </div>
           
-          <div class="flex items-center gap-3">
+          <div class="quantity-section">
+            <span class="label">数量</span>
             <el-input-number 
               v-model="quantity" 
               :min="1" 
-              :max="product.stock"
+              :max="product.stock || 99"
               size="small"
-              class="hidden sm:flex"
-            />
-            
+            ></el-input-number>
+            <span class="stock-info">库存{{ product.stock }}件</span>
+          </div>
+
+          <div class="action-section">
             <el-button 
               type="primary" 
-              size="large" 
-              :icon="ShoppingCart"
-              :loading="isAddingToCart"
               @click="addToCart"
-              class="action-btn add-cart-btn"
+              :disabled="product.stock <= 0"
+              class="action-button cart-button"
+              round
             >
-              加入购物车
+              <el-icon><ShoppingCart /></el-icon> 加入购物车
             </el-button>
             <el-button 
               type="danger" 
-              size="large"
               @click="buyNow"
-              class="action-btn buy-now-btn"
+              :disabled="product.stock <= 0"
+              class="action-button buy-button"
+              round
             >
-              立即购买
+              <el-icon><SoldOut /></el-icon> 立即购买
             </el-button>
+            <div 
+              class="favorite-action" 
+              @click="toggleFavorite" 
+              :class="{'is-favorite': isFavorite}"
+            >
+              <el-icon :class="{'favorites-active': isFavorite}">
+                <component :is="isFavorite ? 'StarFilled' : 'Star'" />
+              </el-icon>
+              <span>{{ isFavorite ? '已收藏' : '收藏' }}</span>
+            </div>
+          </div>
+          
+          <div class="shop-info" v-if="product.shopName || product.shop_name">
+            <div class="shop-logo">
+              <img :src="product.shopLogo || 'https://img.alicdn.com/imgextra/i4/O1CN01EYFcMQ1DGSt54Mb1h_!!6000000000187-2-tps-512-512.png'" alt="店铺logo">
+            </div>
+            <div class="shop-detail">
+              <div class="shop-name">{{ product.shopName || product.shop_name || 'scoornest科巢旗舰店' }}</div>
+              <div class="shop-rating">
+                <el-rate v-model="shopRating" disabled :max="5" :colors="['#ff0036', '#ff0036', '#ff0036']"></el-rate>
+                <span class="rating-text">5.0</span>
+              </div>
+            </div>
+            <el-button type="primary" plain size="small" class="enter-shop-btn">进入店铺</el-button>
+          </div>
+          
+          <div class="tags-section" v-if="product.tags && product.tags.length">
+            <span class="label">标签:</span>
+            <div class="tags-content">
+              <el-tag 
+                v-for="tag in product.tags" 
+                :key="tag"
+                size="small"
+                effect="plain"
+                class="product-tag"
+              >{{ tag }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 吸顶导航栏 -->
+    <div class="sticky-nav" :class="{ 'sticky-active': isNavSticky }">
+      <div class="nav-container">
+        <div 
+          v-for="(item, index) in navItems" 
+          :key="index" 
+          class="nav-item" 
+          :class="{ 'active': activeSection === item.key }"
+          @click="scrollToSection(item.key)"
+        >
+          <span class="nav-text">{{ item.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 商品详情内容区域 -->
+    <div class="product-sections" v-if="product">
+      <!-- 用户评价区域 -->
+      <div class="product-section" id="product-comments" ref="commentsSection">
+        <div class="section-header">
+          <h2 class="section-title">用户评价 <span class="count">({{ product.review_count || product.reviewCount || 0 }})</span></h2>
+          <div class="section-more" @click="activeTab = 'comments'">查看全部</div>
+        </div>
+        <div class="comments-preview">
+          <div v-if="comments.length === 0">
+            <el-empty description="暂无评价" />
+          </div>
+          <div v-else class="comment-list">
+            <div v-for="(comment, index) in comments.slice(0, 2)" :key="index" class="comment-item">
+              <div class="comment-user">
+                <el-avatar :src="comment.userAvatar || userAvatar"></el-avatar>
+                <span>{{ comment.userName }}</span>
+                <el-rate v-model="comment.rating" disabled></el-rate>
+              </div>
+              <div class="comment-content">{{ comment.content }}</div>
+              <div class="comment-images" v-if="comment.images?.length">
+                <el-image
+                  v-for="img in comment.images"
+                  :key="img"
+                  :src="img"
+                  :preview-src-list="comment.images"
+                  fit="cover"
+                  class="comment-image">
+                </el-image>
+              </div>
+              <div class="comment-tags">
+                <div class="tag-item">用材很良心</div>
+                <div class="tag-item">没异味</div>
+                <div class="tag-item">出门带特方便</div>
+              </div>
+              <div class="comment-time">{{ comment.createTime }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 参数信息区域 -->
+      <div class="product-section" id="product-params" ref="paramsSection">
+        <div class="section-header">
+          <h2 class="section-title">参数信息</h2>
+        </div>
+        <div class="params-content">
+          <el-descriptions 
+            :column="2" 
+            border 
+            size="large"
+            v-if="productParams.length > 0"
+          >
+            <el-descriptions-item 
+              v-for="(param, index) in productParams"
+              :key="index"
+              :label="param.paramName"
+              labelClassName="param-label"
+              contentClassName="param-content"
+            >
+              {{ param.paramValue }}{{ param.paramUnit ? param.paramUnit : '' }}
+            </el-descriptions-item>
+          </el-descriptions>
+          <div v-else class="no-params">
+            <el-empty description="暂无参数信息" />
+          </div>
+        </div>
+            </div>
+            
+      <!-- 商品详情区域 -->
+      <div class="product-section" id="product-detail" ref="detailSection">
+        <div class="section-header">
+          <h2 class="section-title">商品详情</h2>
+        </div>
+        <div class="detail-content">
+          <div class="detail-images" v-if="detailPictures.length > 0">
+            <div class="image-wrapper">
+              <div v-for="(pic, index) in detailPictures" :key="index" class="image-container">
+                
+                <el-image
+                  :src="pic.url || getImageUrl(pic.image)"
+                  fit="contain"
+                  lazy
+                  class="detail-image"
+                  @load="handleImageLoad"
+                  @error="handleImageError"
+                >
+                  <template #error>
+                    <div class="image-error">
+                      <el-icon><Picture /></el-icon>
+                      <span>加载失败</span>
+                    </div>
+                  </template>
+                  <template #placeholder>
+                    <div class="image-loading">
+                      <el-icon><Loading /></el-icon>
+                      <span>加载中...</span>
+                    </div>
+                  </template>
+                </el-image>
+              </div>
+            </div>
+          </div>
+          <div v-else class="rich-content" v-html="product.description || product.goods_detail || product.goodsDetail"></div>
+          </div>
+        </div>
+        
+      <!-- 本店推荐区域 -->
+      <div class="product-section" id="product-shop-recommend" ref="shopRecommendSection">
+        <div class="section-header">
+          <h2 class="section-title">本店推荐</h2>
+          <div class="section-action">
+            <el-button 
+              type="primary" 
+              size="small" 
+              color="#ff69b4"
+              :icon="Refresh" 
+              circle 
+              @click="fetchShopRecommendProducts"
+              :loading="shopRecommendLoading"
+              title="换一批商品"
+            ></el-button>
+          </div>
+        </div>
+        <div class="shop-recommend-content" v-loading="shopRecommendLoading">
+          <div class="product-grid" v-if="shopRecommendList.length > 0">
+            <div 
+              v-for="(item, index) in shopRecommendList" 
+              :key="index" 
+              class="recommend-item" 
+              @click="handleProductClick(item, $event, 'shop')"
+            >
+              <div class="item-image">
+                <el-image :src="item.img" fit="cover" lazy>
+                  <template #error>
+                    <div class="image-error">
+                      <el-icon><Picture /></el-icon>
+                    </div>
+                  </template>
+                </el-image>
+                <div class="item-tag" v-if="item.tag">{{ item.tag }}</div>
+              </div>
+              <div class="item-info">
+                <el-tooltip 
+                  :content="item.title" 
+                  placement="top" 
+                  :show-after="500" 
+                  :hide-after="300"
+                >
+                  <div class="item-title">{{ item.title }}</div>
+                </el-tooltip>
+                <div class="item-price">
+                  <span class="current-price">¥{{ item.price }}</span>
+                  <span class="sales-count">{{ item.sales }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="!shopRecommendLoading" class="empty-recommend">
+            <el-empty description="暂无推荐商品" />
+          </div>
+              </div>
+            </div>
+            
+      <!-- 猜你喜欢区域 -->
+      <div class="product-section" id="product-viewed-also-view" ref="viewedAlsoViewSection">
+        <div class="section-header">
+          <h2 class="section-title">猜你喜欢</h2>
+          <div class="section-action">
+            <el-button 
+              type="primary" 
+              size="small" 
+              color="#ff69b4"
+              :icon="Refresh" 
+              circle 
+              @click="fetchViewedAlsoViewProducts"
+              :loading="viewedAlsoViewLoading"
+              title="换一批商品"
+            ></el-button>
+          </div>
+        </div>
+        <div class="viewed-also-view-content" v-loading="viewedAlsoViewLoading">
+          <div class="product-grid" v-if="viewedAlsoViewList.length > 0">
+            <div 
+              v-for="(item, index) in viewedAlsoViewList" 
+              :key="index" 
+              class="recommend-item" 
+              @click="handleProductClick(item, $event, 'view')"
+            >
+              <div class="item-image">
+                <el-image :src="item.img" fit="cover" lazy>
+                  <template #error>
+                    <div class="image-error">
+                      <el-icon><Picture /></el-icon>
+                    </div>
+                  </template>
+                </el-image>
+                <div class="item-tag" v-if="item.tag">{{ item.tag }}</div>
+              </div>
+              <div class="item-info">
+                <el-tooltip 
+                  :content="item.title" 
+                  placement="top" 
+                  :show-after="500" 
+                  :hide-after="300"
+                >
+                  <div class="item-title">{{ item.title }}</div>
+                </el-tooltip>
+                <div class="item-price">
+                  <span class="current-price">¥{{ item.price }}</span>
+                  <span class="sales-count">{{ item.sales }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="!viewedAlsoViewLoading" class="empty-recommend">
+            <el-empty description="暂无推荐商品" />
           </div>
         </div>
       </div>
     </div>
     
-    <!-- 移动设备导航提示 -->
-    <div 
-      v-if="isMobile && !mobileTipDismissed" 
-      class="mobile-nav-tip fixed bottom-0 left-0 right-0 bg-primary text-white py-2 px-4 text-center text-sm z-50"
-    >
-      <div class="flex items-center justify-center">
-        <span>左右滑动查看图片，上下滑动浏览详情</span>
-        <el-button 
-          type="text" 
-          class="text-white ml-2" 
-          @click="dismissMobileTip"
-        >
-          <el-icon><CloseBold /></el-icon>
-        </el-button>
+    <!-- 添加购物车弹窗组件 -->
+    <CartMiniPopup 
+      :visible="cartPopupVisible" 
+      :product="cartPopupProduct" 
+      @close="closeCartPopup" 
+    />
+
+    <!-- 右侧悬浮评价栏 -->
+    <div class="right-floating-panel" v-show="showFloatingBar">
+      <!-- 商品信息面板 -->
+      <div class="panel-item product-panel">
+        <div class="panel-title">商品信息</div>
+        <div class="product-mini-info">
+          <div class="product-mini-image">
+            <el-image :src="getImageUrl(product?.goods_img || product?.goodsImg)" fit="cover"></el-image>
+          </div>
+          <div class="product-mini-details">
+            <div class="product-mini-name">{{ product?.goods_name || product?.goodsName }}</div>
+            <div class="product-mini-price">
+              <span class="current-price">¥{{ Number(product?.price_new || product?.priceNew || product?.price || 0).toFixed(2) }}</span>
+              <span class="original-price" v-if="product?.price_old || product?.priceOld">¥{{ Number(product?.price_old || product?.priceOld || 0).toFixed(2) }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 88VIP区域 -->
+        <div class="vip-benefits-section">
+          <div class="vip-tag">88VIP</div>
+          <div class="scrolling-text-container">
+            <div class="scrolling-text">
+              货包运费，每单最高省25元 | 专属优惠券 | 购物返5%超级红包
+            </div>
+          </div>
+          <div class="vip-action">
+            <span>去开通 <i class="el-icon"><ArrowRight /></i></span>
+          </div>
+        </div>
+        
+        <!-- 规格选择区域 -->
+        <div class="floating-sku-section" v-if="product?.specs && product?.specs.length > 0">
+          <div class="floating-sku-title">已选</div>
+          <div class="floating-sku-value">
+            <template v-if="Object.keys(selectedSpecs).length > 0">
+              <span v-for="(value, name) in selectedSpecs" :key="name" v-if="value">
+                {{ name }}: {{ getSelectedSpecText(name, value) }}
+              </span>
+            </template>
+            <span v-else>未选择规格</span>
+          </div>
+        </div>
+        
+        <!-- 数量选择区域 -->
+        <div class="floating-quantity-section">
+          <div class="floating-quantity-title">数量</div>
+          <div class="floating-quantity-control">
+            <el-input-number v-model="quantity" :min="1" :max="product?.stock || 99" size="small" controls-position="right"></el-input-number>
+          </div>
+        </div>
+        
+        <!-- 购买按钮区域 -->
+        <div class="floating-action-section">
+          <el-button type="warning" @click="addToCart" class="floating-cart-btn">
+            <el-icon><ShoppingCart /></el-icon>加入购物车
+          </el-button>
+          <el-button type="danger" @click="buyNow" class="floating-buy-btn">
+            立即购买
+          </el-button>
+        </div>
+        
+        <!-- 收藏按钮 -->
+        <div class="floating-favorite-section" @click="toggleFavorite">
+          <div class="favorite-btn" :class="{'is-favorite': isFavorite}">
+            <el-icon>
+              <component :is="isFavorite ? 'StarFilled' : 'Star'" />
+            </el-icon>
+            <span>{{ isFavorite ? '已收藏' : '收藏商品' }}</span>
+          </div>
+        </div>
       </div>
     </div>
     
-    <!-- 全局加载状态指示器 -->
-    <div 
-      v-if="globalLoading" 
-      class="global-loading-overlay fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center"
-    >
-      <div class="text-center">
-        <div class="spinner mx-auto mb-4"></div>
-        <p class="text-gray-800 font-medium">{{ loadingMessage || '加载中...' }}</p>
+    <!-- 悬浮操作栏 - 仅在小屏幕上显示 -->
+    <div class="floating-action-bar" v-show="showFloatingBar && isMobileView">
+      <div class="action-item" @click="addToCart">
+        <el-icon><ShoppingCart /></el-icon>
+        <span>加入购物车</span>
+      </div>
+      <div class="action-item" @click="buyNow">
+        <el-icon><SoldOut /></el-icon>
+        <span>立即购买</span>
+      </div>
+      <div class="action-item" :class="{'favorites-active': isFavorite}" @click="toggleFavorite">
+        <el-icon>
+          <component :is="isFavorite ? 'StarFilled' : 'Star'" />
+        </el-icon>
+        <span>{{ isFavorite ? '已收藏' : '收藏' }}</span>
+      </div>
+      <div class="action-item" @click="scrollToComments">
+        <el-icon><ChatDotRound /></el-icon>
+        <span>查看评价</span>
+      </div>
+      <div class="action-item" @click="scrollToTop">
+        <el-icon><TopRight /></el-icon>
+        <span>回到顶部</span>
+      </div>
+    </div>
+    <!-- 固定在右侧的条形栏 -->
+    <div class="fixed-sidebar">
+      <div class="sidebar-item" @click="openCustomerService" data-title="联系客服">
+        <el-icon><ChatRound /></el-icon>
+        <span>客服中心</span>
+      </div>
+      <div class="sidebar-item" @click="navigateToCart" data-title="查看购物车">
+        <el-icon><ShoppingCart /></el-icon>
+        <span>购物车</span>
+        <div class="cart-count" v-if="cartCount > 0">{{ cartCount }}</div>
+      </div>
+      <div class="sidebar-item" @click="toggleFavorite" data-title="收藏商品" :class="{'favorites-active': isFavorite}">
+        <el-icon>
+          <component :is="isFavorite ? 'StarFilled' : 'Star'" />
+        </el-icon>
+        <span>{{ isFavorite ? '已收藏' : '收藏' }}</span>
+      </div>
+      <div class="sidebar-item" @click="navigateToCategory" data-title="浏览分类">
+        <el-icon><GoodsFilled /></el-icon>
+        <span>商品分类</span>
+      </div>
+      <div class="sidebar-item" @click="scrollToTop" data-title="返回顶部">
+        <el-icon><Top /></el-icon>
+        <span>回到顶部</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import MotionDiv from '@/components/MotionDiv.vue';
-import ProductCard from '@/components/product/ProductCard.vue';
-import useProductDetail from '@/scripts/ProductDetail';
+import { Picture, Loading, Van, GoodsFilled, RefreshRight, ShoppingCart, SoldOut, Star, StarFilled, Top, TopRight, ChatDotRound, ArrowRight, Refresh, ChatRound } from '@element-plus/icons-vue'
+import { useProductDetail } from '@/scripts/ProductDetail'
+import '@/styles/ProductDetail.scss'
+import CartMiniPopup from '@/components/product/CartMiniPopup.vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getProductDetail, getRecommendedProducts, getProductList, getProductDetailWithParams } from '@/api/product'
+import { addToCart as addToCartApi } from '@/api/cart'
+import { useCartStore } from '@/stores/cart'
+import { useFavoriteStore } from '@/stores/favorite'
 
-// 使用从ProductDetail.js导入的逻辑
 const {
-  // 状态变量
-  loading,
   product,
-  currentImageIndex,
-  selectedAttrs,
+  loading,
   quantity,
-  isAddingToCart,
-  isFavoriteLoading,
-  isImageViewerVisible,
-  recentlyViewed,
-  imageViewerIndex,
-  isRecentViewedOpen,
-  isShareDialogVisible,
-  loadError,
-  reviewLoadError,
-  relatedLoadError,
-  reviewLoading,
-  reviewFilter,
-  reviewPage,
-  reviewPageSize,
-  reviewTotal,
-  reviews,
-  reviewTagFilter,
-  relatedProductsLoading,
-  relatedProducts,
-  isZooming,
-  productImage,
-  zoomLens,
-  zoomedImage,
-  showFixedBar,
-  newQuestion,
-  isSubmittingQuestion,
-  recommendedProducts,
-  recommendedPageIndex,
-  recommendedPageSize,
-  timeRemaining,
-  isMobile,
-  mobileTipDismissed,
-  globalLoading,
-  loadingMessage,
-  touchStartX,
-  touchEndX,
-  galleryContainer,
-  
-  // 计算属性
-  currentImage,
-  discountPercentage,
-  isStockLow,
-  isOutOfStock,
-  validSelectedAttrs,
-  productLink,
-  recommendedPages,
-  
-  // 共享变量
-  shareOptions,
-  
-  // 方法
-  handleResize,
-  dismissMobileTip,
-  showGlobalLoading,
-  hideGlobalLoading,
-  getSelectedAttrsText,
-  formatPrice,
-  goToProductList,
-  goToProduct,
-  openImageViewer,
-  addToCart,
+  activeTab,
+  selectedSpecs,
+  comments,
+  previewImages,
+  productImages,
+  detailPictures,
+  addToCart: originalAddToCart,
   buyNow,
-  shareProduct,
-  handleShare,
-  copyProductLink,
-  contactCustomerService,
-  showReviewImage,
-  toggleZoomMode,
-  handleImageZoom,
-  getCursorPos,
-  open360View,
-  submitQuestion,
-  nextRecommended,
-  prevRecommended,
-  handleReviewLike,
-  handleReviewComment,
-  fetchReviews,
-  fetchRelatedProducts,
-  fetchRecommendedProducts,
-  retryFetchProductDetail,
-  retryFetchReviews,
-  retryFetchRelated,
-  handleReviewSizeChange,
-  handleReviewPageChange,
-  handleReviewFilterChange,
-  filterReviewsByTag,
-  handleTouchStart,
-  handleTouchMove,
-  handleTouchEnd,
-  
-  // 图标引用
-  ShoppingCart,
-  Star,
-  Picture,
-  Check,
-  Ship,
-  RefreshRight,
-  MessageBox,
-  Share,
-  ChatDotRound,
-  Back,
-  View,
-  Sort,
-  Download,
-  ShoppingBag,
-  Discount,
-  Timer,
-  Promotion,
-  Warning,
-  MoreFilled,
-  ArrowRight,
-  CopyDocument,
-  ZoomIn,
-  Location,
-  Van,
-  ThumbsUp,
-  ArrowLeft,
-  QuestionFilled,
-  CloseBold
-} = useProductDetail();
-</script>
+  getImageUrl,
+  changeMainImage,
+  handleImageLoad,
+  handleImageError,
+  cartPopupVisible,
+  cartPopupProduct,
+  closeCartPopup,
+  showFloatingBar,
+  isFavorite,
+  toggleFavorite,
+  scrollToTop,
+  scrollToComments,
+  handleScroll,
+  userAvatar,
+  commentImages,
+  isMobileView,
+  productParams
+} = useProductDetail()
 
-<style src="../styles/ProductDetail.scss" scoped></style> 
+// 获取route实例
+const route = useRoute();
+
+// 获取当前环境变量
+const isDev = ref(process.env.NODE_ENV === 'development')
+
+// 购物车商品数量
+const cartCount = ref(0)
+
+// 吸顶导航相关
+const isNavSticky = ref(false)
+const activeSection = ref('comments')
+const commentsSection = ref(null)
+const paramsSection = ref(null)
+const detailSection = ref(null)
+const shopRecommendSection = ref(null)
+const viewedAlsoViewSection = ref(null)
+
+// 导航项配置
+const navItems = [
+  { key: 'comments', label: '用户评价' },
+  { key: 'params', label: '参数信息' },
+  { key: 'detail', label: '商品详情' },
+  { key: 'shop-recommend', label: '本店推荐' },
+  { key: 'viewed-also-view', label: '猜你喜欢' }
+]
+
+// 本店推荐数据
+const shopRecommendList = ref([])
+const shopRecommendLoading = ref(false)
+
+// 猜你喜欢数据
+const viewedAlsoViewList = ref([])
+const viewedAlsoViewLoading = ref(false)
+
+// 初始化favorite store
+const favoriteStore = useFavoriteStore()
+
+// 获取本店推荐商品数据
+const fetchShopRecommendProducts = async () => {
+  if (!product.value || !product.value.goodsId) return
+  
+  try {
+    shopRecommendLoading.value = true
+    const params = {
+      productId: product.value.goodsId,
+      categoryId: product.value.categoryId,
+      limit: 20, // 获取更多商品，以便随机选取
+      type: 'shop'
+    }
+    
+    const res = await getRecommendedProducts(params)
+    console.log('获取本店推荐商品响应:', res)
+    
+    if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+      // 随机排序并最多取10个商品
+      const randomProducts = res.data
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 10)
+        .map(item => {
+          console.log('推荐商品原始数据:', item)
+          // 确保获取到正确的图片字段
+          const imageField = item.productImg || item.goodsImg || item.goods_img || ''
+          console.log('使用的图片字段:', imageField)
+          
+          return {
+            id: item.productId || item.goodsId || item.id,
+            title: item.productName || item.goodsName || item.goods_name,
+            price: (item.priceNew || item.price_new || item.price || 0).toFixed(2),
+            sales: (item.sales || 0) + '人付款',
+            img: getImageUrl(imageField),
+            tag: item.tag || (item.discount ? `${item.discount}折` : null)
+          }
+        })
+      
+      console.log('处理后的推荐商品:', randomProducts)
+      shopRecommendList.value = randomProducts
+    } else {
+      console.warn('无推荐商品数据，使用备用数据')
+      // 如果没有获取到数据，使用商品列表中的其他商品
+      await fetchBackupProducts('shop')
+    }
+  } catch (error) {
+    console.error('获取本店推荐商品失败:', error)
+    await fetchBackupProducts('shop')
+  } finally {
+    shopRecommendLoading.value = false
+  }
+}
+
+// 获取猜你喜欢商品数据
+const fetchViewedAlsoViewProducts = async () => {
+  try {
+    viewedAlsoViewLoading.value = true
+    const params = {
+      productId: product.value?.goodsId,
+      limit: 20, // 获取更多商品，以便随机选取
+      type: 'view'
+    }
+    
+    const res = await getRecommendedProducts(params)
+    console.log('获取猜你喜欢商品响应:', res)
+    
+    if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+      // 随机排序并最多取10个商品
+      const randomProducts = res.data
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 10)
+        .map(item => {
+          // 确保获取到正确的图片字段
+          const imageField = item.productImg || item.goodsImg || item.goods_img || ''
+          console.log('猜你喜欢商品图片字段:', imageField)
+          
+          return {
+            id: item.productId || item.goodsId || item.id,
+            title: item.productName || item.goodsName || item.goods_name,
+            price: (item.priceNew || item.price_new || item.price || 0).toFixed(2),
+            sales: (item.sales || 0) + '人付款',
+            img: getImageUrl(imageField),
+            tag: item.tag || (item.discount ? `${item.discount}折` : null)
+          }
+        })
+      
+      console.log('处理后的猜你喜欢商品:', randomProducts)
+      viewedAlsoViewList.value = randomProducts
+    } else {
+      console.warn('无猜你喜欢商品数据，使用备用数据')
+      // 如果没有获取到数据，使用商品列表中的其他商品
+      await fetchBackupProducts('view')
+    }
+  } catch (error) {
+    console.error('获取猜你喜欢商品失败:', error)
+    await fetchBackupProducts('view')
+  } finally {
+    viewedAlsoViewLoading.value = false
+  }
+}
+
+// 获取备用商品数据(当API返回空数据时使用)
+const fetchBackupProducts = async (type) => {
+  try {
+    // 获取商品列表数据，请求更多商品以确保有足够的随机性
+    const res = await getProductList({ page: 1, size: 30 })
+    console.log('获取备用商品列表响应:', res)
+    
+    if (res && res.list && Array.isArray(res.list) && res.list.length > 0) {
+      // 随机选取10个商品
+      const randomProducts = [...res.list]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 10)
+        .map(item => {
+          // 确保获取到正确的图片字段
+          const imageField = item.productImg || item.goodsImg || item.goods_img || ''
+          console.log('备用商品图片字段:', imageField)
+          
+          return {
+            id: item.productId || item.goodsId || item.id,
+            title: item.productName || item.goodsName || item.goods_name,
+            price: (item.priceNew || item.price_new || item.price || 0).toFixed(2),
+            sales: (item.sales || 0) + '人付款',
+            img: getImageUrl(imageField),
+            tag: item.tag || (item.discount ? `${item.discount}折` : null)
+          }
+        })
+      
+      console.log('处理后的备用商品:', randomProducts)
+      
+      if (type === 'shop') {
+        shopRecommendList.value = randomProducts
+      } else {
+        viewedAlsoViewList.value = randomProducts
+      }
+    } else {
+      console.warn('获取备用商品列表失败，无数据')
+    }
+  } catch (error) {
+    console.error('获取备用商品数据失败:', error)
+  }
+}
+
+// 滚动到指定区域
+const scrollToSection = (sectionKey) => {
+  const sectionRefs = {
+    comments: commentsSection,
+    params: paramsSection,
+    detail: detailSection,
+    'shop-recommend': shopRecommendSection,
+    'viewed-also-view': viewedAlsoViewSection
+  }
+  
+  if (sectionRefs[sectionKey]?.value) {
+    // 更新活跃导航项
+    activeSection.value = sectionKey;
+    
+    // 获取sticky导航栏高度
+    const navHeight = 50;
+    
+    // 获取目标元素的位置
+    const targetElement = sectionRefs[sectionKey].value;
+    const targetPosition = targetElement.getBoundingClientRect().top + window.pageYOffset - navHeight;
+    
+    // 平滑滚动到目标位置
+    window.scrollTo({
+      top: targetPosition,
+      behavior: 'smooth'
+    });
+  }
+}
+
+// 监听滚动，判断当前所在区域和是否需要吸顶
+const handlePageScroll = () => {
+  if (!window || !document) return
+  
+  try {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+    
+    // 检查是否需要吸顶（商品信息区域之后）
+    const productInfoSection = document.querySelector('.product-sections')
+    if (productInfoSection) {
+      const stickyPosition = productInfoSection.offsetTop - 60 // 考虑顶部的间距
+      isNavSticky.value = scrollTop >= stickyPosition
+    }
+
+    
+    // 判断当前在哪个区域
+    const sections = ['comments', 'params', 'detail', 'shop-recommend', 'viewed-also-view']
+    const sectionElements = sections.map(s => document.getElementById(`product-${s}`))
+    
+    // 计算各个区域的位置，找出当前滚动位置所在的区域
+    let currentSection = activeSection.value
+    for (let i = sectionElements.length - 1; i >= 0; i--) {
+      if (sectionElements[i] && sectionElements[i].offsetTop - 100 <= scrollTop) {
+        currentSection = sections[i]
+        break
+      }
+    }
+    
+    // 更新当前活跃区域
+    if (activeSection.value !== currentSection) {
+      console.log(`切换到区域: ${currentSection}`);
+      activeSection.value = currentSection
+    }
+    
+    // 判断是否应该显示右侧悬浮栏
+    // 在"本店推荐"和"猜你喜欢"区域不显示右侧悬浮栏
+    const shouldShowFloatingBar = 
+      scrollTop > 400 && 
+      currentSection !== 'shop-recommend' &&
+      currentSection !== 'viewed-also-view'
+    
+    // 更新右侧悬浮栏的显示状态
+    if (showFloatingBar.value !== shouldShowFloatingBar) {
+      showFloatingBar.value = shouldShowFloatingBar
+    }
+    
+    // 检测屏幕宽度，判断是否为移动视图
+    isMobileView.value = window.innerWidth < 1200
+  } catch (error) {
+    console.error('页面滚动处理出错:', error)
+  }
+}
+
+// 在组件挂载后添加滚动监听
+onMounted(() => {
+  window.addEventListener('scroll', handlePageScroll)
+  
+  // 初始化时检查一次
+  setTimeout(() => {
+    handlePageScroll()
+  }, 500)
+  
+  // 获取商品推荐数据
+  if (product.value) {
+    fetchShopRecommendProducts()
+    fetchViewedAlsoViewProducts()
+  }
+  
+  // 初始化购物车数量
+  const cartStore = useCartStore()
+  if (cartStore) {
+    cartCount.value = cartStore.totalCount
+    
+    // 监听购物车更新事件
+    window.addEventListener('cart:updated', () => {
+      cartCount.value = cartStore.totalCount
+    })
+  } else {
+    // 从本地存储获取购物车数量
+    cartCount.value = parseInt(localStorage.getItem('cartCount') || '0')
+  }
+})
+
+// 监听product数据变化
+watch(() => product.value, (newVal) => {
+  if (newVal) {
+    fetchShopRecommendProducts()
+    fetchViewedAlsoViewProducts()
+  }
+}, { immediate: false })
+
+// 监听路由参数变化，重新获取商品数据
+watch(() => route.params.id, (newId, oldId) => {
+  console.log('路由参数变化:', oldId, '->', newId);
+  if (newId && newId !== oldId) {
+    console.log('重新获取商品详情');
+    loading.value = true;
+    
+    // 清空之前的数据，避免页面闪烁显示旧数据
+    product.value = null;
+    previewImages.value = [];
+    productParams.value = [];
+    detailPictures.value = [];
+    
+    // 重新获取商品详情
+    fetchProductDetail();
+    
+    // 重新加载推荐商品
+    if (shopRecommendSection.value) {
+      fetchShopRecommendProducts();
+    }
+    
+    if (viewedAlsoViewSection.value) {
+      fetchViewedAlsoViewProducts();
+    }
+    
+    // 滚动到页面顶部
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }
+}, { immediate: false });
+
+// 组件卸载前移除监听
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handlePageScroll)
+  window.removeEventListener('cart:updated', () => {
+    console.log('移除购物车更新事件监听')
+  })
+})
+
+// 计算折扣
+const calculateDiscount = () => {
+  const newPrice = Number(product.value?.price_new || product.value?.priceNew || product.value?.price || 0)
+  const oldPrice = Number(product.value?.price_old || product.value?.priceOld || product.value?.originalPrice || 0)
+  
+  if (oldPrice && oldPrice > 0 && newPrice < oldPrice) {
+    const discount = (newPrice / oldPrice * 10).toFixed(1)
+    return discount
+  }
+  
+  return 0
+}
+
+// 获取已选规格的文本显示
+const getSelectedSpecText = (specName, specValue) => {
+  if (!product.value || !product.value.specs) return specValue;
+  
+  const specType = product.value.specs.find(s => s.name === specName);
+  if (!specType || !specType.values) return specValue;
+  
+  const selectedSpec = specType.values.find(v => 
+    (v.id && v.id === specValue) || (v === specValue)
+  );
+  
+  return selectedSpec?.name || selectedSpec || specValue;
+}
+
+// 获取已选规格的格式化表示
+const getSelectedSpecsFormatted = () => {
+  if (!product.value || !product.value.specs || !selectedSpecs) {
+    return '';
+  }
+  
+  const texts = [];
+  
+  // 遍历已选规格
+  Object.keys(selectedSpecs).forEach(key => {
+    const specType = product.value.specs.find(s => s.name === key);
+    if (specType) {
+      const selectedValue = specType.values.find(v => v.id === selectedSpecs[key] || v === selectedSpecs[key]);
+      if (selectedValue) {
+        texts.push(`${key}:${selectedValue.name || selectedValue}`);
+      }
+    }
+  });
+  
+  return texts.join(';');
+}
+
+// 添加到购物车
+const addToCart = async () => {
+  if (!product.value) {
+    ElMessage.warning('商品信息不完整，无法添加到购物车')
+    return
+  }
+  
+  if (product.value.stock <= 0) {
+    ElMessage.warning('该商品已售罄')
+    return
+  }
+  
+  try {
+    loading.value = true
+    
+    // 准备购物车数据，包含价格快照
+    const cartData = {
+      goodsId: product.value.goodsId || product.value.id,
+      quantity: quantity.value,
+      specs: getSelectedSpecsFormatted(),
+      // 添加价格快照字段
+      priceSnapshot: Number(product.value.price_new || product.value.priceNew || product.value.price || 0)
+    }
+    
+    // 保存商品详情到localStorage，提供添加购物车参考
+    const productDetails = JSON.parse(localStorage.getItem('productDetails') || '{}')
+    productDetails[cartData.goodsId] = {...product.value}
+    localStorage.setItem('productDetails', JSON.stringify(productDetails))
+    
+    const res = await originalAddToCart(cartData)
+    
+    if (res && res.code === 200) {
+      ElMessage.success('已添加到购物车')
+      
+      // 更新顶部购物车图标的数量
+      const cartStore = useCartStore();
+      if (cartStore) {
+        // 刷新购物车数据，让商店自己更新计数
+        cartStore.getCartItems();
+      } else {
+        // 如果商店不可用，才使用本地存储计数
+        const currentCount = parseInt(localStorage.getItem('cartCount') || '0');
+        localStorage.setItem('cartCount', (currentCount + quantity.value).toString());
+      }
+      
+      // 触发购物车更新事件
+      window.dispatchEvent(new CustomEvent('cart:updated'))
+    } else {
+      ElMessage.warning(res?.message || '添加购物车失败')
+    }
+  } catch (error) {
+    console.error('添加购物车异常:', error)
+    ElMessage.error('添加购物车失败，请稍后再试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 在methods部分添加
+const addItemToCart = (item) => {
+  // 创建一个简化版的产品对象
+  const cartItem = {
+    id: item.id,
+    goodsId: item.id,
+    goodsName: item.title,
+    goodsImg: item.img,
+    price: item.price,
+    priceNew: item.price,
+    quantity: 1,
+    selected: true
+  }
+  
+  // 显示添加成功提示
+  ElMessage({
+    message: '已成功加入购物车',
+    type: 'success',
+    duration: 2000
+  })
+  
+  // 调用添加到购物车的逻辑
+  // 如果存在cartStore，则调用store的action
+  const cartStore = useCartStore()
+  if (cartStore) {
+    cartStore.addItem(cartItem)
+  } else {
+    // 简单的本地存储逻辑作为备用
+    const cart = JSON.parse(localStorage.getItem('muying_cart') || '[]')
+    const existingItem = cart.find(i => i.id === item.id)
+    
+    if (existingItem) {
+      existingItem.quantity++
+    } else {
+      cart.push(cartItem)
+    }
+    
+    localStorage.setItem('muying_cart', JSON.stringify(cart))
+  }
+}
+
+// 添加处理点击事件的方法，使右侧边栏的按钮具备相应功能
+const router = useRouter()
+
+const openCustomerService = () => {
+  // 实现打开客服中心的逻辑
+  ElMessageBox.confirm(
+    '是否连接在线客服？',
+    '客服中心',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info'
+    }
+  ).then(() => {
+    ElMessage({
+      type: 'success',
+      message: '正在连接客服...'
+    })
+  }).catch(() => {
+    // 取消操作
+  })
+}
+
+const navigateToCart = () => {
+  // 导航到购物车
+  router.push('/cart')
+}
+
+const navigateToCategory = () => {
+  // 导航到商品分类
+  router.push('/products')
+}
+
+// 修改初始化方法
+const fetchProductDetail = async () => {
+  loading.value = true;
+  try {
+    console.log(`获取商品详情，ID: ${route.params.id}`);
+    // 使用新的API获取商品详情和参数信息
+    const response = await getProductDetailWithParams(route.params.id);
+    
+    if (response && response.code === 200 && response.data) {
+      product.value = response.data.goods || {};
+      productParams.value = response.data.params || [];
+      
+      // 处理商品图片
+      handleProductImages();
+      
+      // 初始化规格选择
+      initSelectedSpecs();
+      
+      // 获取评论
+      fetchComments();
+    } else {
+      ElMessage.error(response?.message || '获取商品详情失败');
+    }
+  } catch (error) {
+    console.error('获取商品详情失败:', error);
+    ElMessage.error(error.message || '获取商品详情失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 商品点击处理函数
+const handleProductClick = (item, event, source) => {
+  // 防止事件冒泡和默认行为
+  event.preventDefault();
+  event.stopPropagation();
+  
+  if (!item || !item.id) {
+    console.error(`${source}推荐商品点击错误: 商品ID不存在`, item);
+    ElMessage.error('商品信息不完整，无法查看详情');
+    return;
+  }
+  
+  console.log(`点击${source}推荐商品:`, item);
+  console.log(`准备跳转到: /product/${item.id}`);
+  
+  // 如果是同一个商品，需要特殊处理
+  if (String(item.id) === String(route.params.id)) {
+    console.log('点击的是当前商品，刷新页面');
+    // 刷新当前页数据而不是跳转
+    fetchProductDetail();
+    return;
+  }
+  
+  try {
+    // 跳转前显示loading状态
+    loading.value = true;
+    
+    // 使用router实例进行导航，而不是$router
+    router.push({
+      name: 'product-detail',
+      params: { id: item.id }
+    }).catch(err => {
+      console.error('路由跳转失败:', err);
+      // 如果路由跳转失败，尝试硬刷新
+      window.location.href = `/product/${item.id}`;
+    });
+  } catch (error) {
+    console.error('跳转出错:', error);
+    // 如果出错，使用window.location作为备选方案
+    window.location.href = `/product/${item.id}`;
+  }
+}
+</script>

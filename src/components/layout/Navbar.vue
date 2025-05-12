@@ -101,7 +101,7 @@ export default {
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { Search, Message, ShoppingCart, Menu, User, List, Star, Discount, SwitchButton } from '@element-plus/icons-vue'
@@ -119,6 +119,7 @@ const hasNewNotification = ref(true)
 const userStore = useUserStore()
 const cartStore = useCartStore()
 const router = useRouter()
+const route = useRoute()
 
 // 计算属性
 const isLoggedIn = computed(() => userStore.isLoggedIn)
@@ -127,7 +128,16 @@ const userInfo = computed(() => ({
   avatar: userStore.avatar || defaultAvatarImg,
   id: userStore.id
 }))
-const cartItemCount = computed(() => cartStore.cartItemCount)
+const cartItemCount = computed(() => {
+  const count = cartStore.cartItemCount;
+  console.log('Navbar 显示的购物车数量:', count);
+  return count;
+})
+
+// 判断当前是否在商品详情页
+const isProductDetailPage = computed(() => {
+  return route.path.includes('/product/');
+})
 
 // 方法
 const handleSearch = () => {
@@ -176,8 +186,24 @@ const handleLogout = async () => {
 
 // 监听滚动实现吸顶效果
 const handleScroll = () => {
-  isFixed.value = window.scrollY > 0
+  // 只有在非商品详情页时启用吸顶效果
+  if (isProductDetailPage.value) {
+    isFixed.value = false;
+  } else {
+    isFixed.value = window.scrollY > 0;
+  }
 }
+
+// 刷新购物车数量
+const refreshCartCount = async () => {
+  if (isLoggedIn.value) {
+    try {
+      await cartStore.refreshCartCount();
+    } catch (error) {
+      console.error('刷新购物车数量失败:', error);
+    }
+  }
+};
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
@@ -185,6 +211,20 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   // 模拟获取未读消息数量
   unreadMessages.value = 5
+  
+  // 初始化购物车数量
+  if (isLoggedIn.value) {
+    cartStore.initCart();
+    
+    // 每20秒刷新一次购物车数量（可选）
+    const cartCountInterval = setInterval(() => {
+      if (isLoggedIn.value) {
+        refreshCartCount();
+      } else {
+        clearInterval(cartCountInterval);
+      }
+    }, 20000);
+  }
 })
 
 onBeforeUnmount(() => {
