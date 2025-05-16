@@ -5,6 +5,7 @@ import { useOrderStore } from '@/stores/order'
 import { getShippingInfo } from '@/api/order'
 import { getLogisticsByOrderId, queryLogisticsInfo, requestExpediteShipping } from '@/api/logistics'
 import { formatDate as formatDateUtil } from '@/utils/date'
+import { getStatusCode } from '@/utils/orderStatusMapper'
 
 export function useOrderDetail() {
   const router = useRouter()
@@ -168,26 +169,35 @@ export function useOrderDetail() {
   
   // 提交催发货请求
   const submitExpediteRequest = async () => {
-    if (!expediteForm.remark) {
-      ElMessage.warning('请填写催发货原因')
-      return
-    }
+    // 不再需要检查是否填写催发货原因
     
     expediteLoading.value = true
+    ElMessage.info('正在提交催发货请求...')
     
     try {
       const res = await requestExpediteShipping(orderId.value, expediteForm.remark)
       
       if (res.code === 200) {
-        ElMessage.success('催发货请求已提交')
+        ElMessage.success('催发货请求已提交，卖家将尽快为您处理')
         expediteDialogVisible.value = false
-        expediteForm.remark = ''
+        // 不需要重置remark，因为每次都会自动设置
       } else {
-        ElMessage.error(res.message || '催发货请求提交失败')
+        // 针对特定错误提供更友好的提示
+        if (res.message === '当前订单状态不可催发货') {
+          ElMessage.warning('只有待发货状态的订单才能催发货')
+        } else {
+          ElMessage.error(res.message || '催发货请求提交失败')
+        }
       }
     } catch (error) {
       console.error('提交催发货请求失败:', error)
-      ElMessage.error('催发货请求提交失败，请稍后重试')
+      
+      // 针对特定错误提供更友好的提示
+      if (error.message === '当前订单状态不可催发货') {
+        ElMessage.warning('只有待发货状态的订单才能催发货')
+      } else {
+        ElMessage.error('催发货请求提交失败，请稍后重试')
+      }
     } finally {
       expediteLoading.value = false
     }
@@ -195,8 +205,21 @@ export function useOrderDetail() {
   
   // 打开催发货弹窗
   const openExpediteDialog = () => {
-    expediteForm.remark = ''
-    expediteDialogVisible.value = true
+    // 检查订单状态是否允许催发货
+    // 后端验证订单状态为"PENDING_SHIPMENT"，这对应前端的"pending_shipment"/"待发货"状态
+    
+    // 从状态映射中获取状态码
+    const statusCode = getStatusCode(orderDetail.value.status);
+    const isWaitingShipment = statusCode === 1; // 待发货状态码为1
+    
+    if (!orderDetail.value || !isWaitingShipment) {
+      ElMessage.warning('当前订单状态不可催发货，只有待发货状态的订单才能催发货');
+      return;
+    }
+    
+    // 自动填充催发货原因并提交
+    expediteForm.remark = `对订单 ORDER${orderDetail.value.orderNo} 的提醒发货请求已收到，商家将尽快处理。`
+    submitExpediteRequest();
   }
   
   // 格式化日期

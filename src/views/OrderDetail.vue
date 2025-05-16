@@ -299,37 +299,6 @@
         </el-button>
       </div>
     </div>
-    
-    <!-- 催发货对话框 -->
-    <el-dialog
-      title="订单催发货"
-      v-model="expediteDialogVisible"
-      width="420px"
-    >
-      <div class="expedite-dialog">
-        <el-form class="expedite-form" :model="expediteForm">
-          <div class="form-tips">
-            催发货将通知卖家尽快处理您的订单，请填写催发货原因，卖家将尽快为您处理。
-          </div>
-          <el-form-item>
-            <el-input
-              v-model="expediteForm.remark"
-              type="textarea"
-              :rows="3"
-              placeholder="请填写催发货原因，例如：急需使用、特殊场合等"
-            ></el-input>
-          </el-form-item>
-        </el-form>
-      </div>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="expediteDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitExpediteRequest" :loading="expediteLoading">
-            提交
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
   </div>
 </template>
 

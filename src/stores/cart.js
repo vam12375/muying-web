@@ -439,6 +439,14 @@ export const useCartStore = defineStore('cart', {
       }
     },
     
+    // 兼容方法：通过fetchCartItems获取购物车内容
+    // 确保与ProductDetail.vue中的调用保持兼容性
+    async getCartItems() {
+      console.log('调用getCartItems兼容方法');
+      // 直接调用fetchCartItems方法以保持行为一致性
+      return await this.fetchCartItems();
+    },
+    
     // 初始化购物车
     async initCart() {
       console.log('初始化购物车');

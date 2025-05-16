@@ -19,9 +19,22 @@ export function getProductList(params) {
  * @returns {Promise}
  */
 export function getProductDetail(id) {
+  console.log(`调用商品详情API: /products/${id}`);
   return request({
     url: `/products/${id}`,
-    method: 'get'
+    method: 'get',
+    timeout: 10000, // 增加超时时间
+    validateStatus: status => {
+      console.log(`商品详情API响应状态码: ${status}`);
+      return status >= 200 && status < 300; // 只接受2xx响应状态码
+    },
+  }).then(response => {
+    console.log(`商品详情API响应: code=${response.code}, 有数据=${!!response.data}`);
+    return response;
+  }).catch(error => {
+    console.error(`商品详情API错误:`, error);
+    // 重新抛出错误，让调用者处理
+    throw error;
   });
 }
 

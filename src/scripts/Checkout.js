@@ -5,7 +5,7 @@ import { useCartStore } from '@/stores/cart';
 import { useOrderStore } from '@/stores/order';
 import { useUserStore } from '@/stores/user';
 import { usePointsStore } from '@/stores/points';
-import { getUserAddresses } from '@/api/user';
+import { getUserAddresses, getUserCoupons } from '@/api/user';
 import { getAvailableCouponsForOrder, validateCoupon } from '@/api/coupon';
 import { getUserPoints } from '@/api/points';
 import { regionData } from '@/utils/regionData';
@@ -271,12 +271,24 @@ export default function useCheckout() {
       console.log('[Checkout] 积分抵扣未启用或积分为0:', { usePointsForDiscount: usePointsForDiscount.value, pointsToUse: pointsToUse.value });
       return 0;
     }
+    
     // 每100积分抵扣1元
     const discount = Math.floor(pointsToUse.value / 100);
+    
+    // 确保最大抵扣金额有效
+    const maxDiscount = Math.min(maxPointsDiscount.value || 50, subtotal.value);
+    
     // 不超过最大抵扣金额和订单总金额
-    const maxDiscount = Math.min(maxPointsDiscount.value, subtotal.value);
     const finalDiscount = Math.min(discount, maxDiscount);
-    console.log('[Checkout] 计算积分抵扣金额:', { discount, maxDiscount, finalDiscount, pointsToUse: pointsToUse.value });
+    
+    console.log('[Checkout] 计算积分抵扣金额:', { 
+      discount, 
+      maxDiscount, 
+      finalDiscount, 
+      pointsToUse: pointsToUse.value,
+      maxPointsDiscount: maxPointsDiscount.value || 50
+    });
+    
     return finalDiscount;
   });
 
@@ -542,7 +554,8 @@ export default function useCheckout() {
   async function fetchAllCoupons() {
     isLoadingAllCoupons.value = true;
     try {
-      const result = await userStore.getUserCoupons();
+      // 直接使用API函数而非userStore方法
+      const result = await getUserCoupons();
       
       if (result && result.code === 200) {
         const couponsData = result.data || [];
@@ -871,9 +884,23 @@ export default function useCheckout() {
       }
       
       userPoints.value = points;
+      
+      // 设置最大可用积分和最大抵扣金额
+      // 最大可用积分为5000，最大抵扣金额为50元
+      maxPointsUsage.value = 5000; // 最大可使用5000积分
+      maxPointsDiscount.value = 50; // 最大抵扣50元
+      
+      console.log('[Checkout] 积分相关变量设置:', {
+        userPoints: userPoints.value,
+        maxPointsUsage: maxPointsUsage.value,
+        maxPointsDiscount: maxPointsDiscount.value,
+        canUsePoints: userPoints.value > 0
+      });
     } catch (error) {
       console.error('[Checkout] 获取用户积分异常:', error);
       userPoints.value = 0;
+      maxPointsUsage.value = 5000;
+      maxPointsDiscount.value = 50;
     } finally {
       isLoadingPoints.value = false;
     }
@@ -895,29 +922,44 @@ export default function useCheckout() {
       handlePointsInputChange(pointsInputValue.value);
     } else {
       // 默认使用最大可用积分数量
-      const maxUsablePoints = Math.min(userPoints.value, maxPointsUsage.value);
+      const maxUsage = maxPointsUsage.value || 5000;
+      const maxUsablePoints = Math.min(userPoints.value, maxUsage);
       pointsInputValue.value = maxUsablePoints;
       pointsToUse.value = maxUsablePoints;
-      console.log('[Checkout] 已设置默认最大积分:', maxUsablePoints);
+      console.log('[Checkout] 已设置默认最大积分:', {
+        maxPointsUsage: maxUsage,
+        userPoints: userPoints.value,
+        设置积分: maxUsablePoints
+      });
     }
   }
 
   // 处理积分输入变化
   function handlePointsInputChange(value) {
     console.log('[Checkout] 积分输入原始值:', value);
+    
     // 确保是数字
     const numValue = parseInt(value) || 0;
+    
+    // 确保maxPointsUsage有值
+    const maxUsage = maxPointsUsage.value || 5000;
     
     // 确保不超过用户拥有的积分
     let points = Math.min(numValue, userPoints.value);
     
-    // 确保不超过最大可用积分（5000）
-    points = Math.min(points, maxPointsUsage.value);
+    // 确保不超过最大可用积分（默认5000）
+    points = Math.min(points, maxUsage);
     
     // 确保是100的整数倍
     points = Math.floor(points / 100) * 100;
     
-    console.log('[Checkout] 积分输入处理后:', points);
+    console.log('[Checkout] 积分输入处理后:', {
+      原始值: value,
+      数值化: numValue,
+      最大可用积分: maxUsage,
+      用户积分: userPoints.value,
+      最终积分: points
+    });
     
     pointsInputValue.value = points;
     pointsToUse.value = points;

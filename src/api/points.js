@@ -46,7 +46,7 @@ export function signIn() {
  */
 export function checkSignIn() {
   return request({
-    url: '/points/check-sign-in',
+    url: '/points/sign-in-status',
     method: 'get'
   });
 }

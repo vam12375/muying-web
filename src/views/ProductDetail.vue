@@ -15,6 +15,20 @@
       </el-empty>
     </div>
 
+    <!-- 商品状态错误提示 -->
+    <div v-if="product && product.productStatus !== '上架' && product.productStatus !== undefined" class="error-container status-warning">
+      <el-alert
+        title="商品状态提示"
+        type="warning"
+        :description="`该商品当前状态为: ${product.productStatus || '未知'}, 库存: ${product.stock || 0}`"
+        show-icon
+        :closable="false"
+      />
+      <div class="status-action">
+        <el-button type="primary" @click="$router.push('/products')">浏览其他商品</el-button>
+      </div>
+    </div>
+
     <el-row :gutter="40" v-if="product">
       <!-- 商品图片展示 -->
       <el-col :span="12">
@@ -620,7 +634,8 @@ const {
   userAvatar,
   commentImages,
   isMobileView,
-  productParams
+  productParams,
+  getSelectedSpecsText
 } = useProductDetail()
 
 // 获取route实例
@@ -977,14 +992,14 @@ const calculateDiscount = () => {
   return 0
 }
 
-// 获取已选规格的文本显示
+// 获取规格值的文本显示，用于UI展示
 const getSelectedSpecText = (specName, specValue) => {
-  if (!product.value || !product.value.specs) return specValue;
+  if (!product || !product.specs) return specValue;
   
-  const specType = product.value.specs.find(s => s.name === specName);
+  const specType = product.specs.find(s => s.name === specName);
   if (!specType || !specType.values) return specValue;
   
-  const selectedSpec = specType.values.find(v => 
+  const selectedSpec = specType.values.find(v =>
     (v.id && v.id === specValue) || (v === specValue)
   );
   
@@ -1219,3 +1234,31 @@ const handleProductClick = (item, event, source) => {
   }
 }
 </script>
+
+<style scoped>
+.error-container {
+  padding: 40px 0;
+  text-align: center;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.status-warning {
+  margin: 20px 0;
+  background-color: #fef9e7;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.status-warning .el-alert {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.status-action {
+  margin-top: 20px;
+}
+</style>

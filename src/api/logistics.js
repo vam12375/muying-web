@@ -49,8 +49,11 @@ export function getLogisticsTrackById(logisticsId) {
  */
 export function requestExpediteShipping(orderId, remark) {
   return request({
-    url: `/order/${orderId}/expedite`,
+    url: `/user/message/shippingReminder`,
     method: 'post',
-    data: { remark }
+    params: {
+      orderId: orderId,
+      message: remark
+    }
   });
 } 

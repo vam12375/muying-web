@@ -76,20 +76,26 @@ export const useProductDetail = () => {
     // 如果是完整URL，直接返回
     if (filename.startsWith('http')) return filename;
     
-    // 检查是否已经是goodsxx.jpg格式
-    if (filename.match(/^goods\d+\.jpg$/)) {
+    // 将路径中的反斜杠转换为正斜杠
+    if (filename.includes('\\')) {
+      filename = filename.replace(/\\/g, '/');
+    }
+    
+    // 标准化文件名：如果是"goods24.jpg"这样的格式
+    const goodsPattern = /^goods(\d+)\.jpg$/i;
+    const goodsMatch = filename.match(goodsPattern);
+    if (goodsMatch) {
+      // 已经是standard命名的图片，确保路径正确
       return `/products/${filename}`;
     }
     
-    // 尝试从文件名中提取商品ID
-    const goodsId = String(filename).replace(/\D/g, '');
-    if (goodsId) {
+    // 从文件名中提取商品ID
+    const extractIdPattern = /(\d+)/;
+    const idMatch = filename.match(extractIdPattern);
+    if (idMatch) {
+      const goodsId = idMatch[1];
+      // 构建标准格式的文件名
       return `/products/goods${goodsId}.jpg`;
-    }
-    
-    // 如果文件名不包含正斜杠但可能包含反斜杠，处理它们
-    if (!filename.includes('/') && filename.includes('\\')) {
-      filename = filename.replace(/\\/g, '/');
     }
     
     // 如果路径不以/开头并且不包含/products/，添加前缀
@@ -100,7 +106,6 @@ export const useProductDetail = () => {
     // 记录最终返回的URL
     console.log('最终返回的图片URL:', filename);
     
-    // 如果无法解析，则使用默认路径
     return filename;
   }
 
@@ -207,9 +212,30 @@ export const useProductDetail = () => {
       
       // 构建购物车请求数据，使用后端期望的参数名
       const cartData = {
-        goodsId: parseInt(product.value.goodsID || product.value.goodsId),
+        productId: parseInt(product.value.goodsID || product.value.goodsId),
         quantity: parseInt(quantity.value) || 1,
-        specs: selectedSpecsText || ''
+        selected: 1
+      }
+      
+      // 处理规格数据：将规格字符串转换为Map对象
+      if (selectedSpecsText) {
+        try {
+          // 将"尺寸:100cm(3-4岁);颜色:红色"格式转换为Map对象
+          const specsMap = {};
+          selectedSpecsText.split(';').forEach(item => {
+            const [key, value] = item.split(':');
+            if (key && value) {
+              specsMap[key.trim()] = value.trim();
+            }
+          });
+          
+          // 只有在有规格数据时才添加specs字段
+          if (Object.keys(specsMap).length > 0) {
+            cartData.specs = specsMap;
+          }
+        } catch (e) {
+          console.error('规格数据转换失败:', e);
+        }
       }
       
       console.log('发送购物车数据：', cartData);
@@ -224,6 +250,49 @@ export const useProductDetail = () => {
       } catch (error) {
         console.error('API调用失败，使用本地备份:', error);
         
+        // 针对不同错误类型提供更详细的错误处理
+        let errorMessage = '添加购物车失败，使用本地备份';
+        
+        // 检查是否有响应体
+        if (error.response) {
+          // 服务器返回了错误状态码
+          const status = error.response.status;
+          const responseData = error.response.data;
+          
+          // 记录详细错误信息
+          console.error(`服务器响应错误: 状态码=${status}, 消息=${responseData?.message || '无消息'}`);
+          
+          if (status === 500) {
+            errorMessage = '服务器内部错误，可能是参数格式不匹配';
+            
+            // 针对系统繁忙的特定错误
+            if (responseData?.message?.includes('系统繁忙')) {
+              errorMessage = '系统繁忙，请稍后重试';
+            }
+          } else if (status === 400) {
+            errorMessage = '请求参数错误';
+            
+            // 检查是否有具体的错误信息
+            if (responseData?.message) {
+              errorMessage = responseData.message;
+            }
+          } else if (status === 401) {
+            errorMessage = '请先登录后再操作';
+            // 可能需要跳转到登录页面
+            router.push('/login?redirect=' + encodeURIComponent(router.currentRoute.value.fullPath));
+            return; // 中断后续操作
+          }
+        } else if (error.request) {
+          // 请求发出但没有收到响应
+          errorMessage = '网络请求超时，请检查网络连接';
+        } else {
+          // 在请求设置时发生错误
+          errorMessage = `请求错误: ${error.message}`;
+        }
+        
+        // 显示错误消息
+        ElMessage.error(errorMessage);
+        
         // 处理特定的规格格式错误
         if (error instanceof SyntaxError && error.message.includes("Unexpected token")) {
           console.log('规格格式错误，尝试使用简单字符串方式处理');
@@ -233,15 +302,15 @@ export const useProductDetail = () => {
         // 使用本地备份逻辑处理
         res = {
           code: 200, 
-          message: '已添加到本地购物车',
-          data: true
+          message: errorMessage,
+          data: false
         };
         
         // 手动添加到本地购物车
         const localCart = JSON.parse(localStorage.getItem('localCart') || '[]');
         const existingItemIndex = localCart.findIndex(item => {
           // 基本ID匹配
-          if (item.id != cartData.goodsId) return false;
+          if (item.id != cartData.productId) return false;
           
           // 如果两者都没有规格，则认为是同一商品
           if (!item.specs && !cartData.specs) return true;
@@ -257,7 +326,7 @@ export const useProductDetail = () => {
           localCart[existingItemIndex].quantity += cartData.quantity;
         } else {
           localCart.push({
-            id: cartData.goodsId,
+            id: cartData.productId,
             name: product.value.goods_name || product.value.goodsName,
             image: product.value.goods_img || product.value.goodsImg || '/src/assets/img/default.jpg',
             price: product.value.price_new || product.value.priceNew,
@@ -465,21 +534,42 @@ export const useProductDetail = () => {
     try {
       console.log(`获取商品详情，ID: ${route.params.id}`);
       
-      // 使用新的API获取商品详情和参数信息
-      const response = await getProductDetailWithParams(route.params.id);
+      // 优先使用详情API获取商品详情和参数信息
+      const response = await getProductDetail(route.params.id);
       
       if (response && response.code === 200 && response.data) {
         console.log('获取到商品详情数据:', response.data);
         
-        // 商品基本信息和参数
-        product.value = response.data.goods || {};
-        productParams.value = response.data.params || [];
+        // 添加商品状态检查
+        if (response.data.productStatus !== '上架') {
+          console.warn(`商品${route.params.id}状态为: ${response.data.productStatus || '未知状态'}, 库存: ${response.data.stock || 0}`);
+          ElMessage.warning(`该商品${response.data.productStatus === '下架' ? '已下架' : '状态异常'}`);
+        }
         
-        // 确保规格信息正确解析
-        handleProductSpecs(response.data.specs || []);
+        // 检查关键属性是否存在
+        if (!response.data.productName || !response.data.priceNew) {
+          console.warn('商品关键属性缺失:', {
+            id: response.data.productId,
+            name: response.data.productName,
+            price: response.data.priceNew,
+            status: response.data.productStatus
+          });
+        }
+
+        // 设置商品数据
+        product.value = response.data;
         
-        console.log('处理后的商品详情:', product.value);
-        console.log('获取的商品参数:', productParams.value);
+        // 添加前端商品ID兼容处理
+        if (product.value && product.value.productId && !product.value.goodsId) {
+          product.value.goodsId = product.value.productId;
+          product.value.goodsName = product.value.productName;
+          product.value.goodsImg = product.value.productImg;
+          console.log('添加前端兼容字段:', {
+            goodsId: product.value.goodsId,
+            goodsName: product.value.goodsName,
+            goodsImg: product.value.goodsImg
+          });
+        }
         
         // 处理商品图片
         handleProductImages();
@@ -489,39 +579,50 @@ export const useProductDetail = () => {
         
         // 获取评论
         fetchComments();
+        
+        // 获取商品参数（直接调用，无需条件判断）
+        fetchProductParams();
       } else {
-        // 如果新API失败，尝试使用旧API
-        const fallbackResponse = await getProductDetail(route.params.id);
-        if (fallbackResponse && fallbackResponse.code === 200 && fallbackResponse.data) {
-          product.value = fallbackResponse.data;
-          console.log('使用旧API获取的商品详情:', product.value);
-          
-          // 处理商品图片
-          handleProductImages();
-          
-          // 初始化规格选择
-          initSelectedSpecs();
-          
-          // 获取评论
-          fetchComments();
-        } else {
-          ElMessage.error('获取商品详情失败');
-          product.value = null;
-        }
+        console.error('获取商品详情失败', {
+          responseCode: response?.code,
+          responseMsg: response?.message,
+          responseData: !!response?.data
+        });
+        ElMessage.error(response?.message || '获取商品详情失败');
+        product.value = null;
       }
     } catch (error) {
       console.error('获取商品详情失败:', error);
+      ElMessage.error(error.message || '获取商品详情失败');
       product.value = null;
-      
-      // 在开发环境使用模拟数据，但确保不会覆盖已有数据
-      if (process.env.NODE_ENV === 'development' && !product.value) {
-        product.value = generateMockProductData(route.params.id);
-        handleProductImages();
-      } else {
-        ElMessage.error(error.message || '获取商品详情失败');
-      }
     } finally {
       loading.value = false;
+    }
+  };
+  
+  // 获取商品参数
+  const fetchProductParams = async () => {
+    try {
+      const paramsResponse = await getProductDetailWithParams(route.params.id);
+      if (paramsResponse && paramsResponse.code === 200 && paramsResponse.data) {
+        console.log('获取到商品参数数据:', paramsResponse.data);
+        
+        // 设置商品参数
+        productParams.value = paramsResponse.data.params || [];
+        
+        // 处理商品规格数据
+        if (paramsResponse.data.specs && Array.isArray(paramsResponse.data.specs)) {
+          handleProductSpecs(paramsResponse.data.specs);
+        } else if (paramsResponse.data.specsList && Array.isArray(paramsResponse.data.specsList)) {
+          handleProductSpecs(paramsResponse.data.specsList);
+        } else {
+          console.warn('未找到有效的商品规格数据');
+        }
+      } else {
+        console.error('获取商品参数失败', paramsResponse);
+      }
+    } catch (error) {
+      console.error('获取商品参数失败:', error);
     }
   };
 
@@ -841,81 +942,101 @@ export const useProductDetail = () => {
 
   // 处理商品图片
   const handleProductImages = () => {
-    if (!product.value) return;
+    if (!product.value) {
+      console.warn('处理商品图片失败: 商品数据为空');
+      return;
+    }
     
-    // 设置商品主图
-    mainImage.value = getImageUrl(product.value.goodsImg || product.value.goods_img);
-    
-    // 收集商品的所有图片，包括主图和其他展示图
-    let pictures = [];
-    
-    // 添加主图
-    pictures.push({
-      pictureId: 'main',
-      image: product.value.goodsImg || product.value.goods_img,
-      imageType: 'main',
-      url: getImageUrl(product.value.goodsImg || product.value.goods_img)
-    });
-    
-    // 如果存在图片列表，添加到Pictures中
-    if (product.value.pictures && Array.isArray(product.value.pictures) && product.value.pictures.length > 0) {
-      pictures = pictures.concat(product.value.pictures.map(pic => {
-        // 确保图片URL存在
-        if (!pic.url && pic.pictureUrl) {
-          pic.url = pic.pictureUrl;
-        }
-        // 如果URL不是完整URL，则添加正确的路径前缀
-        if (pic.url && !pic.url.startsWith('http')) {
-          pic.url = `/products/${pic.url}`;
-        }
-        return pic;
-      }));
-    } else {
-      // 没有图片列表时，生成额外的商品图片
-      const productId = String(product.value.goodsId || product.value.goodsID).padStart(2, '0');
-      // 添加额外的商品图片作为轮播图
-      for (let i = 1; i <= 3; i++) {
-        const additionalImg = {
-          pictureId: `goods${productId}_${i}`,
-          image: `goods${productId}_${i}.jpg`,
-          imageType: 'goods',
-          url: `/products/goods${productId}_${i}.jpg`
-        };
-        pictures.push(additionalImg);
+    try {
+      // 检查商品状态
+      if (product.value.productStatus !== '上架' && product.value.productStatus !== undefined) {
+        console.warn(`商品图片处理 - 商品状态: ${product.value.productStatus}`);
       }
+      
+      // 设置商品主图
+      const mainImgSrc = product.value.goodsImg || product.value.productImg || product.value.goods_img;
+      if (!mainImgSrc) {
+        console.warn('商品主图URL不存在');
+      }
+      mainImage.value = getImageUrl(mainImgSrc);
+      console.log('设置商品主图:', mainImage.value);
+      
+      // 收集商品的所有图片，包括主图和其他展示图
+      let pictures = [];
+      
+      // 添加主图
+      pictures.push({
+        pictureId: 'main',
+        image: mainImgSrc,
+        imageType: 'main',
+        url: getImageUrl(mainImgSrc)
+      });
+      
+      // 如果存在图片列表，添加到Pictures中
+      if (product.value.images && Array.isArray(product.value.images) && product.value.images.length > 0) {
+        console.log(`商品有${product.value.images.length}张图片`);
+        pictures = pictures.concat(product.value.images.map(pic => {
+          // 确保图片URL存在
+          if (!pic.url && pic.pictureUrl) {
+            pic.url = pic.pictureUrl;
+          }
+          // 如果URL不是完整URL，则添加正确的路径前缀
+          if (pic.url && !pic.url.startsWith('http')) {
+            pic.url = `/products/${pic.url}`;
+          }
+          return pic;
+        }));
+      } else {
+        console.warn('商品没有额外图片列表');
+        // 没有图片列表时，生成额外的商品图片
+        const productId = String(product.value.goodsId || product.value.productId || product.value.goodsID).padStart(2, '0');
+        // 添加额外的商品图片作为轮播图
+        for (let i = 1; i <= 3; i++) {
+          const additionalImg = {
+            pictureId: `goods${productId}_${i}`,
+            image: `goods${productId}_${i}.jpg`,
+            imageType: 'goods',
+            url: `/products/goods${productId}_${i}.jpg`
+          };
+          pictures.push(additionalImg);
+        }
+      }
+      
+      // 生成详情图片 - 根据商品ID加载对应的详情图片
+      const productId = String(product.value.goodsId || product.value.productId || product.value.goodsID).padStart(2, '0'); // 补齐2位
+      console.log(`尝试加载商品ID ${productId} 的详情图片`);
+      
+      const descImages = [];
+      
+      // 固定生成6张详情图片 - 根据目录中的实际命名格式
+      for (let i = 1; i <= 6; i++) {
+        // 格式为 desc_xx_xx.jpg，例如 desc_01_01.jpg
+        const imgNum = String(i).padStart(2, '0');
+        const descImg = {
+          pictureId: `desc_${productId}_${imgNum}`,
+          image: `desc_${productId}_${imgNum}.jpg`,
+          imageType: 'detail',
+          url: `/details/desc_${productId}_${imgNum}.jpg`
+        };
+        descImages.push(descImg);
+        console.log(`添加详情图片:`, descImg.url);
+      }
+      
+      // 将详情图片添加到图片集合中
+      pictures = pictures.concat(descImages);
+      
+      // 设置图片数据 - 确保只有6张详情图片
+      detailPictures.value = descImages;
+      
+      // 设置预览图片URL列表
+      previewImages.value = pictures.map(pic => pic.url || getImageUrl(pic.image));
+      
+      console.log("详情图片设置完成，共", detailPictures.value.length, "张图片");
+      console.log("所有产品图片数量：", pictures.length);
+    } catch (error) {
+      console.error('处理商品图片时出错:', error);
+      ElMessage.warning('加载商品图片时出现问题，请刷新页面重试');
     }
-    
-    // 生成详情图片 - 根据商品ID加载对应的详情图片
-    const productId = String(product.value.goodsId || product.value.goodsID).padStart(2, '0'); // 补齐2位
-    console.log(`尝试加载商品ID ${productId} 的详情图片`);
-    
-    const descImages = [];
-    
-    // 固定生成6张详情图片 - 根据目录中的实际命名格式
-    for (let i = 1; i <= 6; i++) {
-      // 格式为 desc_xx_xx.jpg，例如 desc_01_01.jpg
-      const imgNum = String(i).padStart(2, '0');
-      const descImg = {
-        pictureId: `desc_${productId}_${imgNum}`,
-        image: `desc_${productId}_${imgNum}.jpg`,
-        imageType: 'detail',
-        url: `/details/desc_${productId}_${imgNum}.jpg`
-      };
-      descImages.push(descImg);
-      console.log(`添加详情图片:`, descImg.url);
-    }
-    
-    // 将详情图片添加到图片集合中
-    pictures = pictures.concat(descImages);
-    
-    // 设置图片数据 - 确保只有6张详情图片
-    detailPictures.value = descImages;
-    
-    // 设置预览图片URL列表
-    previewImages.value = pictures.map(pic => pic.url || getImageUrl(pic.image));
-    
-    console.log("详情图片设置完成，共", detailPictures.value.length, "张图片");
-    console.log("所有产品图片：", pictures);
   };
 
   // 获取评论信息

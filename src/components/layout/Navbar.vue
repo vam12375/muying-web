@@ -36,7 +36,7 @@
       <!-- 右侧用户区域 -->
       <div class="navbar-right">
         <div class="icon-group">
-          <router-link to="/messages" class="icon-item">
+          <router-link to="/messages" class="icon-item" v-if="isLoggedIn">
             <el-badge :value="unreadMessages" :max="99" :hidden="!unreadMessages">
               <el-icon :size="24"><Message /></el-icon>
             </el-badge>
@@ -73,6 +73,11 @@
               <el-icon><List /></el-icon>
               <span>我的订单</span>
             </router-link>
+            <router-link to="/messages" class="dropdown-item" @click="closeDropdown">
+              <el-icon><Message /></el-icon>
+              <span>消息中心</span>
+              <el-badge v-if="unreadMessages" :value="unreadMessages" :max="99" class="item-badge" />
+            </router-link>
             <router-link to="/favorites" class="dropdown-item" @click="closeDropdown">
               <el-icon><Star /></el-icon>
               <span>我的收藏</span>
@@ -104,6 +109,7 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
+import { useMessageStore } from '@/stores/message'
 import { Search, Message, ShoppingCart, Menu, User, List, Star, Discount, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import defaultAvatarImg from '@/assets/default-avatar.png'
@@ -112,12 +118,13 @@ import defaultAvatarImg from '@/assets/default-avatar.png'
 const searchKeyword = ref('')
 const isFixed = ref(false)
 const showDropdown = ref(false)
-const unreadMessages = ref(0)
-const hasNewNotification = ref(true)
+const hasNewNotification = ref(false)
+const messageRefreshTimer = ref(null)
 
 // Store
 const userStore = useUserStore()
 const cartStore = useCartStore()
+const messageStore = useMessageStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -133,6 +140,7 @@ const cartItemCount = computed(() => {
   console.log('Navbar 显示的购物车数量:', count);
   return count;
 })
+const unreadMessages = computed(() => messageStore.unreadCount)
 
 // 判断当前是否在商品详情页
 const isProductDetailPage = computed(() => {
@@ -198,39 +206,55 @@ const handleScroll = () => {
 const refreshCartCount = async () => {
   if (isLoggedIn.value) {
     try {
-      await cartStore.refreshCartCount();
+      await cartStore.fetchCartItems();
     } catch (error) {
-      console.error('刷新购物车数量失败:', error);
+      console.error('刷新购物车数据失败:', error);
     }
   }
-};
+}
 
-onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
-  // 添加点击外部关闭菜单的事件监听
-  document.addEventListener('click', handleClickOutside)
-  // 模拟获取未读消息数量
-  unreadMessages.value = 5
-  
-  // 初始化购物车数量
+// 刷新消息数量
+const refreshMessageCount = async () => {
   if (isLoggedIn.value) {
-    cartStore.initCart();
-    
-    // 每20秒刷新一次购物车数量（可选）
-    const cartCountInterval = setInterval(() => {
-      if (isLoggedIn.value) {
-        refreshCartCount();
-      } else {
-        clearInterval(cartCountInterval);
-      }
-    }, 20000);
+    try {
+      await messageStore.fetchUnreadCount();
+      // 根据未读消息数量更新通知点
+      hasNewNotification.value = messageStore.hasUnreadMessages;
+    } catch (error) {
+      console.error('刷新消息数量失败:', error);
+    }
   }
-})
+}
 
+// 组件挂载
+onMounted(() => {
+  // 刷新购物车数量
+  refreshCartCount();
+  
+  // 刷新消息数量
+  refreshMessageCount();
+  
+  // 设置定时刷新消息数量
+  messageRefreshTimer.value = setInterval(refreshMessageCount, 60000); // 每60秒刷新一次
+  
+  // 添加点击外部关闭下拉菜单的事件监听
+  document.addEventListener('click', handleClickOutside);
+  
+  // 添加滚动监听
+  window.addEventListener('scroll', handleScroll);
+  handleScroll(); // 初始化状态
+});
+
+// 组件卸载
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
-  document.removeEventListener('click', handleClickOutside)
-})
+  document.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('scroll', handleScroll);
+  
+  // 清除消息刷新定时器
+  if (messageRefreshTimer.value) {
+    clearInterval(messageRefreshTimer.value);
+  }
+});
 </script>
 
 <style lang="scss" scoped>
@@ -412,21 +436,9 @@ onBeforeUnmount(() => {
 
 .icon-group {
   display: flex;
-  margin-right: 18px;
-  flex-shrink: 0;
-
-  .icon-item {
-    margin: 0 12px;
-    position: relative;
-    color: #606266;
-    cursor: pointer;
-    transition: all 0.3s ease;
-
-    &:hover {
-      color: #f27c8d;
-      transform: translateY(-2px);
-    }
-  }
+  align-items: center;
+  gap: 20px;
+  margin-right: 20px;
 }
 
 .auth-buttons {
@@ -472,106 +484,80 @@ onBeforeUnmount(() => {
 
 .user-profile {
   position: relative;
-  cursor: pointer;
+}
 
-  .avatar-container {
-    display: flex;
-    align-items: center;
-    padding: 5px 10px;
-    border-radius: 20px;
-    transition: all 0.3s ease;
-    
-    &:hover {
-      background-color: rgba(242, 124, 141, 0.08);
-    }
-    
-    .username {
-      margin-left: 10px;
-      font-size: 15px;
-      max-width: 80px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-weight: 500;
-      color: #333;
-    }
-  }
+.avatar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 20px;
+  transition: background-color 0.3s;
+}
+
+.avatar-container:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.username {
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
 }
 
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 5px);
   right: 0;
   width: 180px;
-  background: white;
+  background-color: white;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   padding: 8px 0;
-  margin-top: 5px;
-  z-index: 100;
-  transform-origin: top right;
-  animation: dropdownFadeIn 0.25s ease;
+  z-index: 1000;
+}
 
-  @keyframes dropdownFadeIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  color: #333;
+  transition: background-color 0.3s;
+  text-decoration: none;
+  position: relative;
+}
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: -5px;
-    right: 22px;
-    width: 10px;
-    height: 10px;
-    background: white;
-    transform: rotate(45deg);
-    box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.04);
-  }
+.dropdown-item:hover {
+  background-color: #f5f7fa;
+}
 
-  .dropdown-item {
-    display: flex;
-    align-items: center;
-    padding: 12px 18px;
-    color: #606266;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    font-weight: 500;
-    letter-spacing: 0.3px;
+.dropdown-divider {
+  height: 1px;
+  background-color: #ebeef5;
+  margin: 8px 0;
+}
 
-    &:hover {
-      background: rgba(242, 124, 141, 0.08);
-      color: #f27c8d;
-      padding-left: 22px;
-    }
+.logout-item {
+  color: #f56c6c;
+  cursor: pointer;
+}
 
-    .el-icon {
-      margin-right: 10px;
-      font-size: 18px;
-    }
-  }
+.logout-item:hover {
+  background-color: #fef0f0;
+}
 
-  .dropdown-divider {
-    height: 1px;
-    background: #ebeef5;
-    margin: 6px 0;
-  }
+.item-badge {
+  position: absolute;
+  right: 16px;
+}
 
-  .logout-item {
-    color: #f56c6c;
-    cursor: pointer;
-    
-    &:hover {
-      background: rgba(245, 108, 108, 0.08);
-      color: #f56c6c;
-    }
-  }
+/* 通知红点样式 */
+.notification-dot {
+  margin-left: 2px;
 }
 
 /* 移动端适配 */

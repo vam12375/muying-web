@@ -92,6 +92,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/messages',
+      name: 'messages',
+      component: () => import('../views/Messages.vue'),
+      meta: {
+        title: '消息中心',
+        requiresAuth: true
+      }
+    },
+    {
       path: '/orders',
       name: 'orders',
       component: () => import('../views/Orders.vue'),

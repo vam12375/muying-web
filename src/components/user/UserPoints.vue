@@ -218,12 +218,15 @@ const formatDate = (dateString) => {
 // 加载用户积分总数
 const loadUserPoints = async () => {
   try {
+    loading.value = true;
+    emptyText.value = "加载中...";
     const res = await getUserPoints();
+    
     if (res.code === 200) {
       // 检查返回的数据格式，并正确提取积分值
       if (typeof res.data === 'object') {
-        // 如果返回的是对象，从totalPoints属性获取积分
-        userPoints.value = res.data.totalPoints || 0;
+        // 从totalPoints或points属性获取积分
+        userPoints.value = res.data.totalPoints || res.data.points || 0;
         // 更新签到状态
         isSignedIn.value = res.data.todaySigned || false;
         // 输出调试信息
@@ -238,28 +241,29 @@ const loadUserPoints = async () => {
       // 重置错误状态
       sessionError.value = false;
       apiError.value = false;
+      // 设置空数据提示
+      emptyText.value = "暂无积分记录";
     } else {
       ElMessage.error(res.message || '获取积分失败');
       apiError.value = true;
       errorMessage.value = res.message || '获取积分失败';
+      emptyText.value = "获取数据失败";
     }
   } catch (error) {
     console.error('获取积分失败:', error);
+    emptyText.value = "获取数据失败";
     
     // 特殊处理会话失效问题
-    if (error.response && error.response.status === 500) {
-      const errorData = error.response.data;
-      if (errorData && errorData.includes('Session was invalidated')) {
-        sessionError.value = true;
-        errorMessage.value = '登录会话已失效，请重新登录';
-      } else {
-        apiError.value = true;
-        errorMessage.value = '获取积分失败，请稍后重试';
-      }
+    if (error.response && error.response.status === 401) {
+      sessionError.value = true;
+      apiError.value = false;
     } else {
       apiError.value = true;
-      errorMessage.value = '获取积分失败，请稍后重试';
+      sessionError.value = false;
+      errorMessage.value = error.message || '获取积分失败';
     }
+  } finally {
+    loading.value = false;
   }
 };
 

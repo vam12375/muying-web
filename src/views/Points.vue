@@ -596,6 +596,30 @@ const levelProgress = computed(() => {
   return Math.min(Math.max(progress, 0), 100);
 });
 
+// 计算会员等级进度
+const calculateLevelProgress = () => {
+  // 获取当前等级所需积分和下一等级所需积分
+  const currentLevelPoints = levelPoints[userLevel.value] || 0;
+  const nextLevel = getNextLevel.value;
+  const nextLevelPoints = levelPoints[nextLevel] || Infinity;
+  
+  // 如果已经是最高等级
+  if (nextLevelPoints === Infinity) {
+    levelProgress.value = 100;
+    pointsToNextLevel.value = 0;
+    return;
+  }
+  
+  // 计算到下一等级还需要的积分
+  const pointsNeeded = nextLevelPoints - currentLevelPoints;
+  const pointsAchieved = userPoints.value - currentLevelPoints;
+  
+  pointsToNextLevel.value = Math.max(0, nextLevelPoints - userPoints.value);
+  
+  // 计算进度百分比
+  levelProgress.value = Math.min(100, Math.max(0, Math.floor((pointsAchieved / pointsNeeded) * 100)));
+};
+
 // 显示指定板块
 const showSection = (section) => {
   activeSection.value = section;
@@ -632,29 +656,37 @@ const animatePointsValue = () => {
   animate();
 };
 
-// 加载用户积分信息
-const loadUserPoints = async () => {
+// 获取用户积分信息和签到状态
+const loadUserPointsInfo = async () => {
   try {
+    loading.value = true;
     const res = await getUserPoints();
     if (res.code === 200 && res.data) {
-      // 设置积分数据
-      userPoints.value = res.data.points || 0;
+      // 确保正确提取所有需要的数据
+      userPoints.value = res.data.totalPoints || res.data.points || 0;
+      alreadySignedIn.value = res.data.todaySigned || false;
+      consecutiveDays.value = res.data.continuousDays || 0;
       userLevel.value = res.data.userLevel || '普通会员';
+      
+      // 计算等级信息
+      calculateLevelProgress();
+      
+      // 积分数字动画
+      animatePointsValue();
+      
+      // 获取其他信息，如果API未返回，则使用默认值
       pointsThisMonth.value = res.data.pointsThisMonth || 0;
-      totalPointsEarned.value = res.data.totalPointsEarned || 0;
-      totalPointsUsed.value = res.data.totalPointsUsed || 0;
+      totalPointsEarned.value = res.data.totalEarned || 0;
+      totalPointsUsed.value = res.data.totalUsed || 0;
       expiringPoints.value = res.data.expiringPoints || 0;
       expiringDate.value = res.data.expiringDate || '';
-      consecutiveDays.value = res.data.consecutiveDays || 0;
       
-      // 启动积分数字动画
-      animatedPoints.value = 0;
-      nextTick(() => {
-        animatePointsValue();
-      });
+      console.log('积分信息加载成功:', res.data);
+    } else {
+      ElMessage.error(res.message || '获取积分信息失败');
     }
   } catch (error) {
-    console.error('获取用户积分信息失败:', error);
+    console.error('获取积分信息失败:', error);
     ElMessage.error('获取积分信息失败，请稍后再试');
   } finally {
     loading.value = false;
@@ -743,8 +775,11 @@ const handlePageChange = (page) => {
 const checkSignInStatus = async () => {
   try {
     const res = await checkSignIn();
-    if (res.code === 200) {
-      alreadySignedIn.value = res.data.hasSignedToday || false;
+    if (res.code === 200 && res.data) {
+      alreadySignedIn.value = res.data.todaySigned || false;
+      consecutiveDays.value = res.data.continuousDays || consecutiveDays.value;
+      
+      console.log('签到状态检查:', res.data);
     }
   } catch (error) {
     console.error('检查签到状态失败:', error);
@@ -902,7 +937,7 @@ watch([selectedCategory, sortOrder], () => {
 
 // 初始化
 onMounted(async () => {
-  await loadUserPoints(); // 先加载用户积分信息
+  await loadUserPointsInfo(); // 先加载用户积分信息
   await loadProducts(); // 然后加载商品
   checkSignInStatus(); // 检查签到状态
   
