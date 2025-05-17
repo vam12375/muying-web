@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
+import { useUserStore } from '@/stores/user'
+import { ElMessage } from 'element-plus'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -89,6 +91,33 @@ const router = createRouter({
       meta: {
         title: '个人中心',
         requiresAuth: true
+      },
+      beforeEnter: (to, from, next) => {
+        console.log('[UserRoute] 进入用户中心路由守卫');
+        const userStore = useUserStore();
+        
+        // 检查用户是否已登录
+        if (!userStore.isLoggedIn) {
+          console.log('[UserRoute] 用户未登录，尝试检查认证状态');
+          
+          // 尝试检查认证状态
+          userStore.checkAuth().then(authStatus => {
+            if (!authStatus) {
+              console.log('[UserRoute] 认证失败，重定向到登录页面');
+              ElMessage.warning('请先登录');
+              next({
+                path: '/login',
+                query: { redirect: to.fullPath }
+              });
+            } else {
+              console.log('[UserRoute] 认证成功，允许访问用户中心');
+              next();
+            }
+          });
+        } else {
+          console.log('[UserRoute] 用户已登录，允许访问用户中心');
+          next();
+        }
       }
     },
     {
@@ -122,7 +151,7 @@ const router = createRouter({
     {
       path: '/review/order/:orderId',
       name: 'order-review',
-      component: () => import('../views/Orders.vue'),
+      component: () => import('../views/ReviewOrder.vue'),
       meta: {
         title: '订单评价',
         requiresAuth: true
@@ -181,70 +210,52 @@ const router = createRouter({
   }
 })
 
-// 全局路由守卫
-router.beforeEach((to, from, next) => {
+// 全局前置守卫
+router.beforeEach(async (to, from, next) => {
   // 设置页面标题
-  document.title = to.meta.title ? `${to.meta.title} - 母婴商城` : '母婴商城'
+  document.title = to.meta.title ? `${to.meta.title} - 母婴商城` : '母婴商城';
   
-  // 暂时注释掉会话同步逻辑
-  /*
-  const lastSessionSync = localStorage.getItem('lastSessionSync');
-  const currentTime = Date.now();
-  const SESSION_SYNC_DEBOUNCE = 10000; // 会话同步防抖时间(10秒)
+  // 记录路由跳转
+  console.log(`[Guard] 路由跳转: ${from.path} -> ${to.path}`);
   
-  import('@/utils/auth').then(({ getToken }) => {
-    const token = getToken();
-    if (token) {
-      if (!lastSessionSync || (currentTime - parseInt(lastSessionSync)) > SESSION_SYNC_DEBOUNCE) {
-        import('@/utils/request').then(({ startSessionRefresh }) => {
-          startSessionRefresh();
-          localStorage.setItem('lastSessionSync', currentTime.toString());
-        });
-      } else {
-        console.log('跳过会话同步，上次同步时间:', new Date(parseInt(lastSessionSync)).toLocaleTimeString());
-      }
-    }
-  });
-  */
-
   // 检查路由是否需要认证
-  if (to.meta.requiresAuth) {
-    // 使用 import 动态导入，确保 getToken 能获取最新状态
-    import('@/utils/auth').then(({ getToken }) => {
-      const token = getToken();
-      console.log('[Guard] Checking auth for:', to.path, 'Token exists:', !!token);
-      if (!token) {
-        console.log('[Guard] No token, redirecting to login for:', to.fullPath);
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  
+  if (requiresAuth) {
+    console.log(`[Guard] 路由需要认证: ${to.path}`);
+    
+    // 获取用户存储
+    const userStore = useUserStore();
+    
+    // 检查用户是否已登录
+    if (!userStore.isLoggedIn) {
+      console.log(`[Guard] 用户未登录，尝试检查认证状态`);
+      
+      // 尝试检查认证状态
+      const authStatus = await userStore.checkAuth();
+      
+      if (!authStatus) {
+        console.log(`[Guard] 认证失败，重定向到登录页面`);
+        ElMessage.warning('请先登录');
+        
+        // 保存原始目标路由，以便登录后重定向
         next({
           path: '/login',
           query: { redirect: to.fullPath }
         });
-      } else {
-        console.log('[Guard] Token exists, proceeding to:', to.path);
-        next(); // Token 存在，继续导航
+        return;
       }
-    }).catch(err => {
-        console.error('[Guard] Error importing auth utils:', err);
-        // 发生错误，阻止导航可能不是最佳选择，但可以先重定向到登录页
-        next({ path: '/login' }); 
-    });
-  } else {
-    console.log('[Guard] Route does not require auth:', to.path);
-    next(); // 不需要认证，直接继续
-  }
-
-  // 暂时注释掉 /cart 特殊处理逻辑
-  /*
-  if (to.path === '/cart' && from.path !== '/cart') {
-    if (lastSessionSync && (currentTime - parseInt(lastSessionSync)) < SESSION_SYNC_DEBOUNCE) {
-      next({
-        path: '/cart',
-        query: { ...to.query, noAutoLoad: 'true' }
-      });
-      return;
+      
+      console.log(`[Guard] 认证成功，用户ID: ${userStore.id}`);
+    } else {
+      console.log(`[Guard] 用户已登录，ID: ${userStore.id}`);
     }
+  } else {
+    console.log(`[Guard] 路由不需要认证: ${to.path}`);
   }
-  */
-})
+  
+  // 继续导航
+  next();
+});
 
 export default router

@@ -51,9 +51,22 @@ service.interceptors.request.use(
     // 在请求发送前做些什么
     const token = getToken();
     
+    console.log(`request.js 请求拦截器: ${config.url}, token存在: ${!!token}`);
+    
     if (token) {
       // 将token添加到请求头，确保格式正确
       config.headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      console.log(`request.js 请求拦截器: 已添加Authorization头部到请求`);
+    } else {
+      console.log(`request.js 请求拦截器: 无token可用，请求可能需要认证`);
+      
+      // 检查是否是需要认证的API请求
+      const authRequiredPaths = ['/user/', '/order/', '/comment/', '/address/', '/favorite/'];
+      const isAuthRequired = authRequiredPaths.some(path => config.url.includes(path));
+      
+      if (isAuthRequired) {
+        console.warn(`request.js 请求拦截器: 警告 - 尝试访问需要认证的API但无token: ${config.url}`);
+      }
     }
     
     // 如果是会话同步请求，标记一下
@@ -70,7 +83,7 @@ service.interceptors.request.use(
   },
   error => {
     // 请求错误处理
-    console.error('请求错误:', error);
+    console.error('request.js 请求错误:', error);
     return Promise.reject(error);
   }
 );
@@ -195,21 +208,42 @@ service.interceptors.response.use(
     const res = response.data;
     
     if (import.meta.env.DEV && res) {
-      console.log('响应数据:', response.config.url, res.code);
+      console.log(`request.js 响应数据: ${response.config.url}, code=${res.code}`);
     }
     
     // 服务器返回非200状态码
     if (res.code !== 200) {
-      // 重新启用会话同步和重试逻辑
-      if (res.code === 400 && res.message === '未登录' && !response.config._isSessionSyncRequest) {
-        console.log('检测到未登录错误，尝试同步会话');
+      // 未登录错误处理
+      if ((res.code === 400 || res.code === 401) && 
+          (res.message === '未登录' || res.message === '无效的token' || res.message === 'token已过期') && 
+          !response.config._isSessionSyncRequest) {
+        console.log(`request.js 响应拦截器: 检测到未登录错误 (${res.code}: ${res.message})，尝试同步会话`);
+        
+        // 检查是否是用户信息相关请求
+        if (response.config.url.includes('/user/info')) {
+          console.log('request.js 响应拦截器: 获取用户信息失败，可能需要重新登录');
+          removeToken(); // 移除无效的token
+          
+          // 避免在登录页面显示错误
+          if (!window.location.pathname.includes('/login')) {
+            showUniqueErrorMessage('登录已过期，请重新登录');
+            router.push('/login');
+          }
+          
+          return Promise.reject(new Error(res.message || '请求失败'));
+        }
+        
+        // 其他API的会话恢复逻辑
         const requestId = getRequestId(response.config);
         const retryCount = retryCountMap.get(requestId) || 0;
         
         if (retryCount >= MAX_RETRY_ATTEMPTS) {
-          console.log(`请求 ${response.config.url} 已达到最大重试次数，放弃重试`);
+          console.log(`request.js 响应拦截器: 请求 ${response.config.url} 已达到最大重试次数，放弃重试`);
           showUniqueErrorMessage('登录状态异常，请尝试重新登录');
           retryCountMap.delete(requestId);
+          
+          // 重定向到登录页面
+          router.push('/login');
           return Promise.reject(new Error(res.message || '请求失败'));
         }
         
@@ -220,12 +254,15 @@ service.interceptors.response.use(
         
         syncSession().then(success => {
           if (success) {
-            console.log('会话同步成功，准备重试请求');
+            console.log('request.js 响应拦截器: 会话同步成功，准备重试请求');
             retryFailedRequests();
           } else {
-            console.log('会话同步失败，放弃重试');
+            console.log('request.js 响应拦截器: 会话同步失败，放弃重试');
             requestsToRetry.length = 0;
-            showUniqueErrorMessage('登录状态异常，请尝试重新登录');
+            showUniqueErrorMessage('登录状态异常，请重新登录');
+            
+            // 重定向到登录页面
+            router.push('/login');
           }
         });
         

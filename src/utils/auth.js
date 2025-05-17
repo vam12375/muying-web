@@ -4,7 +4,8 @@
  */
 
 // Token的存储键名
-const TOKEN_KEY = 'token';
+const TOKEN_KEY = 'muying_token';
+const OLD_TOKEN_KEY = 'token'; // 旧的token键名，用于向后兼容
 const ADMIN_TOKEN_KEY = 'adminToken';
 const USER_ID_KEY = 'userId';
 const USER_NAME_KEY = 'username';
@@ -101,14 +102,23 @@ export function ensureUserId() {
  * @param {boolean} withBearer 是否自动添加Bearer前缀
  */
 export function setToken(token, withBearer = true) {
-  if (!token) return;
+  if (!token) {
+    console.error('auth.js setToken: 尝试存储空token');
+    return;
+  }
+  
+  console.log('auth.js setToken: 存储token');
   
   // 确保token格式统一，添加Bearer前缀
   const formattedToken = withBearer && !token.startsWith('Bearer ') 
     ? `Bearer ${token}` 
     : token;
   
+  // 存储到新的键名
   localStorage.setItem(TOKEN_KEY, formattedToken);
+  
+  // 同时移除旧的token键名
+  localStorage.removeItem(OLD_TOKEN_KEY);
   
   // 尝试从token中提取用户ID并保存
   const userId = extractUserIdFromToken();
@@ -123,10 +133,22 @@ export function setToken(token, withBearer = true) {
  * @returns {string} 用户token
  */
 export function getToken() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  console.log('从存储获取的原始token:', token);
+  // 首先尝试从新的键名获取token
+  let token = localStorage.getItem(TOKEN_KEY);
   
-  // 返回完整的token（包含Bearer前缀）
+  // 如果新键名没有token，尝试从旧键名获取
+  if (!token) {
+    token = localStorage.getItem(OLD_TOKEN_KEY);
+    
+    // 如果从旧键名获取到了token，迁移到新键名
+    if (token) {
+      console.log('auth.js getToken: 从旧键名获取到token，正在迁移到新键名');
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.removeItem(OLD_TOKEN_KEY);
+    }
+  }
+  
+  console.log('auth.js getToken:', token ? '获取到token' : '未获取到token');
   return token;
 }
 
@@ -135,7 +157,20 @@ export function getToken() {
  * @returns {void}
  */
 export function removeToken() {
+  console.log('auth.js removeToken: 移除token');
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(OLD_TOKEN_KEY); // 同时移除旧键名
+}
+
+/**
+ * 检查 token 是否存在
+ * @returns {boolean} 是否存在 token
+ */
+export function hasToken() {
+  const token = getToken();
+  const exists = !!token;
+  console.log('auth.js hasToken:', exists ? 'token存在' : 'token不存在');
+  return exists;
 }
 
 /**

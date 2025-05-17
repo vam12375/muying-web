@@ -37,6 +37,9 @@ export const useUserStore = defineStore('user', {
   getters: {
     isLoggedIn: (state) => !!state.token,
     
+    // 获取用户ID (兼容性getter)
+    userId: (state) => state.id,
+    
     // 获取用户默认地址
     defaultAddress: (state) => {
       return state.addresses.find(address => address.isDefault) || null;
@@ -51,18 +54,34 @@ export const useUserStore = defineStore('user', {
   actions: {
     // 检查用户认证状态
     async checkAuth() {
+      console.log('userStore.checkAuth: 开始检查用户认证状态');
+      
       // 从localStorage获取token
       const token = getToken();
+      console.log('userStore.checkAuth: 获取到token:', !!token);
       
       if (!token) {
+        console.log('userStore.checkAuth: 未找到token，认证失败');
+        this.resetUserInfo(); // 确保状态被重置
         return false;
       }
       
       // 设置token到state
       this.token = token;
+      console.log('userStore.checkAuth: token已设置到state');
+      
+      // 如果已有用户ID，可能不需要重新获取用户信息
+      if (this.id) {
+        console.log('userStore.checkAuth: 已有用户ID，无需重新获取用户信息');
+        return true;
+      }
       
       // 尝试获取用户信息
-      return await this.fetchUserInfo();
+      console.log('userStore.checkAuth: 尝试获取用户信息');
+      const result = await this.fetchUserInfo();
+      console.log('userStore.checkAuth: 获取用户信息结果:', result);
+      
+      return result;
     },
     
     // 用户登录
@@ -158,20 +177,25 @@ export const useUserStore = defineStore('user', {
     
     // 获取用户信息
     async fetchUserInfo() {
+      console.log('userStore.fetchUserInfo: 开始获取用户信息');
+      
       if (!this.token) {
+        console.log('userStore.fetchUserInfo: 无token，无法获取用户信息');
         return false;
       }
       
       this.loading = true;
       
       try {
+        console.log('userStore.fetchUserInfo: 发送获取用户信息请求');
         const res = await getUserInfo();
+        console.log('userStore.fetchUserInfo: 获取用户信息响应:', res);
         
         if (res.code === 200 && res.data) {
           const userInfo = res.data;
           
           // 更新状态
-          this.id = userInfo.id;
+          this.id = userInfo.id || userInfo.userId; // 兼容不同的字段名
           this.username = userInfo.username;
           this.nickname = userInfo.nickname;
           this.avatar = userInfo.avatar;
@@ -182,17 +206,20 @@ export const useUserStore = defineStore('user', {
           this.createTime = userInfo.createTime;
           this.role = userInfo.role;
           
+          console.log('userStore.fetchUserInfo: 用户信息已更新, ID:', this.id);
+          
           // 加载用户地址
           this.fetchUserAddresses();
           
           return true;
         } else {
+          console.error('userStore.fetchUserInfo: 获取用户信息失败:', res.message);
           this.resetUserInfo();
           ElMessage.error(res.message || '获取用户信息失败');
           return false;
         }
       } catch (error) {
-        console.error('获取用户信息失败:', error);
+        console.error('userStore.fetchUserInfo: 获取用户信息出错:', error);
         ElMessage.error('获取用户信息失败，请重新登录');
         this.resetUserInfo();
         return false;
@@ -506,7 +533,13 @@ export const useUserStore = defineStore('user', {
     
     // 重置用户信息
     resetUserInfo() {
+      console.log('userStore.resetUserInfo: 开始重置用户信息');
+      
+      // 从本地存储中移除token
       removeToken();
+      console.log('userStore.resetUserInfo: 已从本地存储移除token');
+      
+      // 重置所有用户相关状态
       this.id = null;
       this.token = null;
       this.username = '';
@@ -519,6 +552,8 @@ export const useUserStore = defineStore('user', {
       this.createTime = '';
       this.role = '';
       this.addresses = [];
+      
+      console.log('userStore.resetUserInfo: 用户信息已重置');
     }
   }
 }) 

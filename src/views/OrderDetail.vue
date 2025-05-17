@@ -292,11 +292,60 @@
         </el-button>
         
         <el-button 
+          v-if="orderDetail.status === 'completed' && !orderDetail.isCommented"
+          type="primary" 
+          @click="goToReview"
+        >
+          评价订单
+        </el-button>
+        
+        <el-button 
+          v-if="orderDetail.status === 'completed' && orderDetail.isCommented"
+          @click="viewComments"
+        >
+          查看评价
+        </el-button>
+        
+        <el-button 
           v-if="['completed', 'cancelled', 'closed'].includes(orderDetail.status)"
           @click="deleteOrder"
         >
           删除订单
         </el-button>
+      </div>
+      
+      <!-- 评价区域 (仅当订单已完成时显示) -->
+      <div 
+        v-if="orderDetail.status === 'completed'"
+        class="detail-section review-section"
+      >
+        <div class="section-header">
+          <span>订单评价</span>
+        </div>
+        <div class="section-content">
+          <!-- 未评价状态 -->
+          <div v-if="!orderDetail.isCommented" class="review-empty">
+            <el-empty description="您还未评价此订单" :image-size="100">
+              <template #description>
+                <p>评价订单可获得积分奖励，分享您的购物体验吧！</p>
+              </template>
+              <el-button type="primary" @click="goToReview">去评价</el-button>
+            </el-empty>
+          </div>
+          
+          <!-- 已评价状态 -->
+          <div v-else class="review-completed">
+            <el-result
+              icon="success"
+              title="已完成评价"
+              sub-title="感谢您的评价，您的反馈对我们非常重要"
+            >
+              <template #extra>
+                <el-button type="primary" @click="viewComments">查看评价</el-button>
+              </template>
+            </el-result>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -307,6 +356,11 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ArrowLeft, RefreshRight, InfoFilled } from '@element-plus/icons-vue'
 import { useOrderDetail } from '@/scripts/OrderDetail'
 import LogisticsTrackTimeline from '@/components/LogisticsTrackTimeline.vue'
+import { useRouter } from 'vue-router'
+import { getOrderComments } from '@/api/comment'
+import { ElMessage } from 'element-plus'
+
+const router = useRouter()
 
 // 使用订单详情相关逻辑
 const {
@@ -337,6 +391,28 @@ const {
   getStatusColor,
   clearAutoRefresh  // 添加clearAutoRefresh函数
 } = useOrderDetail()
+
+// 前往评价页面
+const goToReview = () => {
+  router.push(`/review/order/${orderId.value}`)
+}
+
+// 查看评价
+const viewComments = async () => {
+  try {
+    const res = await getOrderComments(orderId.value)
+    if (res.code === 200 && res.data && res.data.length > 0) {
+      // 跳转到商品详情页的评价区域
+      const productId = res.data[0].productId
+      router.push(`/product/${productId}#product-comments`)
+    } else {
+      ElMessage.info('暂无评价信息')
+    }
+  } catch (err) {
+    console.error('获取评价失败:', err)
+    ElMessage.error('获取评价信息失败')
+  }
+}
 
 // 组件挂载时获取订单详情
 onMounted(() => {
