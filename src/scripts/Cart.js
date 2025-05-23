@@ -632,6 +632,10 @@ export default function useCart() {
         // 保存到localStorage，包含完整的商品信息
         localStorage.setItem('checkoutItems', JSON.stringify(selectedCartItems));
         console.log('[Cart Debug] 已保存结算商品信息到本地存储:', selectedCartItems);
+        
+        // 清除localStorage中可能存在的立即购买数据，避免干扰购物车结算
+        localStorage.removeItem('buyNow');
+        console.log('[Cart Debug] 已清除localStorage中的立即购买数据');
       } catch (e) {
         console.error('[Cart Debug] 保存结算商品信息失败:', e);
       }

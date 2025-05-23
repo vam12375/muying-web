@@ -408,8 +408,11 @@ const fetchOrderStats = async () => {
       pendingPayment: stats?.pendingPayment || 0,
       pendingShipment: stats?.pendingShipment || 0,
       pendingReceive: stats?.pendingReceive || 0,
-      completed: stats?.completed || 0
+      completed: stats?.completed || 0,
+      cancelled: stats?.cancelled || 0
     }
+    
+    console.log('Orders.vue 获取订单统计数据:', orderStats.value)
   } catch (error) {
     console.error('获取订单统计失败:', error)
     // 确保错误时orderStats保持默认值
@@ -417,14 +420,27 @@ const fetchOrderStats = async () => {
       pendingPayment: 0,
       pendingShipment: 0,
       pendingReceive: 0,
-      completed: 0
+      completed: 0,
+      cancelled: 0
     }
   }
 }
 
 // 生命周期钩子
 onMounted(() => {
-  fetchOrders()
+  // 强制刷新页面时重置订单store中的状态，确保获取最新数据
+  orderStore.resetFilters();
+  
+  // 先获取订单统计数据，确保统计卡片显示正确
+  orderStore.fetchOrderStats().then(() => {
+    console.log('初始化订单统计数据完成');
+    // 然后加载订单列表和详细统计
+    fetchOrders();
+  }).catch(error => {
+    console.error('初始化订单统计数据失败:', error);
+    // 出错时仍然加载订单列表
+    fetchOrders();
+  });
 })
 </script>
 

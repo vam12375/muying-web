@@ -229,6 +229,21 @@
           color: var(--status-completed);
         }
       }
+      
+      &.status-cancelled {
+        &::before {
+          background: var(--status-cancelled);
+        }
+        
+        .stat-icon {
+          color: var(--status-cancelled);
+          background-color: rgba(149, 165, 166, 0.1);
+        }
+        
+        .stat-value {
+          color: var(--status-cancelled);
+        }
+      }
     }
   }
   

@@ -13,7 +13,7 @@ import {
   deleteUserAddress,
   setDefaultUserAddress
 } from '@/api/user'
-import { removeToken, setToken, getToken } from '@/utils/auth'
+import { removeToken, setToken, getToken, isAuthenticated } from '@/utils/auth'
 import { ElMessage } from 'element-plus'
 
 export const useUserStore = defineStore('user', {
@@ -66,13 +66,41 @@ export const useUserStore = defineStore('user', {
         return false;
       }
       
+      // 检查token是否有效
+      try {
+        // 使用auth.js中的isAuthenticated函数检查token是否有效
+        const isValidToken = isAuthenticated();
+        if (!isValidToken) {
+          console.warn('userStore.checkAuth: token无效，认证失败');
+          this.resetUserInfo();
+          return false;
+        }
+        
+        console.log('userStore.checkAuth: token有效');
+      } catch (error) {
+        console.error('userStore.checkAuth: 验证token时出错:', error);
+        this.resetUserInfo();
+        return false;
+      }
+      
       // 设置token到state
       this.token = token;
       console.log('userStore.checkAuth: token已设置到state');
       
+      // 从localStorage获取用户ID和用户名
+      const storedUserId = localStorage.getItem('userId');
+      const storedUsername = localStorage.getItem('username');
+      
       // 如果已有用户ID，可能不需要重新获取用户信息
-      if (this.id) {
-        console.log('userStore.checkAuth: 已有用户ID，无需重新获取用户信息');
+      if (this.id && this.username) {
+        console.log('userStore.checkAuth: 已有用户ID和用户名，无需重新获取用户信息');
+        return true;
+      } else if (storedUserId && storedUsername) {
+        // 如果store中没有但localStorage中有，则从localStorage恢复
+        console.log('userStore.checkAuth: 从localStorage恢复用户信息');
+        this.id = storedUserId;
+        this.username = storedUsername;
+        this.avatar = localStorage.getItem('userAvatar') || '';
         return true;
       }
       
@@ -96,7 +124,7 @@ export const useUserStore = defineStore('user', {
       this.loading = true;
       
       try {
-        console.log('登录请求参数:', username, password);
+        //console.log('登录请求参数:', username, password);
         const res = await login(username, password);
         console.log('登录响应结果:', res);
         

@@ -57,15 +57,35 @@ service.interceptors.request.use(
       // 将token添加到请求头，确保格式正确
       config.headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
       console.log(`request.js 请求拦截器: 已添加Authorization头部到请求`);
+      
+      // 记录token的前10个字符，用于调试
+      console.log(`request.js 请求拦截器: Token前缀: ${token.substring(0, Math.min(10, token.length))}...`);
+      
+      // 检查token是否为有效的JWT格式
+      if (token.startsWith('Bearer ')) {
+        const tokenWithoutBearer = token.substring(7);
+        const parts = tokenWithoutBearer.split('.');
+        
+        if (parts.length !== 3) {
+          console.warn('request.js 请求拦截器: token格式可能无效，但仍将使用');
+        }
+      }
     } else {
       console.log(`request.js 请求拦截器: 无token可用，请求可能需要认证`);
       
       // 检查是否是需要认证的API请求
-      const authRequiredPaths = ['/user/', '/order/', '/comment/', '/address/', '/favorite/'];
+      const authRequiredPaths = ['/user/', '/order/', '/comment/', '/address/', '/favorite/', '/cart/'];
       const isAuthRequired = authRequiredPaths.some(path => config.url.includes(path));
       
       if (isAuthRequired) {
         console.warn(`request.js 请求拦截器: 警告 - 尝试访问需要认证的API但无token: ${config.url}`);
+        
+        // 尝试从localStorage中获取用户信息，查看是否有不一致
+        const userId = localStorage.getItem('userId');
+        const username = localStorage.getItem('username');
+        if (userId || username) {
+          console.warn(`request.js 请求拦截器: 发现潜在的登录状态不一致 - 有用户信息但无token, userId: ${userId}, username: ${username}`);
+        }
       }
     }
     

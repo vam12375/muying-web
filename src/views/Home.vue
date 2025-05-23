@@ -49,6 +49,7 @@ import NewArrivals from '@/components/home/NewArrivals.vue';
 import BrandShowcase from '@/components/home/BrandShowcase.vue';
 import RecommendedForYou from '@/components/home/RecommendedForYou.vue';
 import { ElMessage } from 'element-plus';
+import { getProductList, getHotProducts, getNewProducts, getRecommendedProducts } from '@/api/product';
 
 export default {
   name: 'HomePage',
@@ -65,6 +66,11 @@ export default {
     return {
       isLoggedIn: false, // 根据实际认证状态修改
       isRecommendationsLoading: false,
+      isLoading: {
+        featuredProducts: false,
+        newArrivals: false,
+        recommendations: false
+      },
       banners: [
         {
           id: 1,
@@ -140,10 +146,86 @@ export default {
     },
     loadHomeData() {
       // 加载首页所需的各种数据
-      // 在实际应用中，这里应该调用API获取数据
-      
-      // 加载推荐数据示例
+      this.loadFeaturedProducts();
+      this.loadNewArrivals();
       this.loadRecommendations();
+    },
+    async loadFeaturedProducts() {
+      this.isLoading.featuredProducts = true;
+      
+      try {
+        // 获取商品列表，每页20条，随机展示
+        const params = {
+          page: 1,
+          size: 20,
+          isRecommend: true // 获取推荐商品
+        };
+        
+        const res = await getProductList(params);
+        
+        if (res.code === 200 && res.data && res.data.records) {
+          // 将商品数据转换为组件所需格式
+          const products = res.data.records.map(item => ({
+            id: item.productId,
+            name: item.productName,
+            shortDesc: item.productDetail ? 
+              (item.productDetail.length > 50 ? item.productDetail.substring(0, 50) + '...' : item.productDetail) : 
+              '暂无描述',
+            image: item.productImg ? 
+              (item.productImg.startsWith('/') ? item.productImg : `/${item.productImg}`) : 
+              '/images/product-placeholder.jpg',
+            price: item.priceNew || 0,
+            originalPrice: item.priceOld || null,
+            discount: item.priceOld && item.priceNew ? 
+              Math.round((1 - item.priceNew / item.priceOld) * 100) : null,
+            isNew: item.isNew === 1,
+            rating: item.rating || 4.5,
+            ratingCount: item.reviewCount || 0,
+            category: item.categoryId,
+            tags: this.generateTags(item),
+            inWishlist: false // 默认未收藏
+          }));
+          
+          // 随机打乱商品顺序
+          this.featuredProducts = this.shuffleArray(products).slice(0, 8);
+        } else {
+          console.error('获取精选商品失败:', res.message || '未知错误');
+        }
+      } catch (error) {
+        console.error('获取精选商品出错:', error);
+      } finally {
+        this.isLoading.featuredProducts = false;
+      }
+    },
+    generateTags(product) {
+      const tags = [];
+      if (product.isNew === 1) tags.push('new');
+      if (product.priceOld && product.priceNew && product.priceNew < product.priceOld) tags.push('sale');
+      if (product.isHot === 1) tags.push('popular');
+      if (product.isRecommend === 1 && tags.length === 0) tags.push('popular'); // 如果是推荐商品但没有其他标签，默认为热门
+      return tags;
+    },
+    shuffleArray(array) {
+      // Fisher-Yates 洗牌算法
+      const newArray = [...array];
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    },
+    loadNewArrivals() {
+      // 加载新品上市数据
+      this.isLoading.newArrivals = true;
+      
+      // 这里应该是真实的API调用
+      // 示例: getNewProducts(8).then(res => { this.newArrivals = res.data; })
+      
+      // 模拟API请求延迟
+      setTimeout(() => {
+        this.isLoading.newArrivals = false;
+        // 使用组件默认数据
+      }, 1000);
     },
     loadRecommendations() {
       // 加载个性化推荐数据

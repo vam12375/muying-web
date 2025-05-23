@@ -76,7 +76,7 @@
 import { ref, reactive, defineEmits, defineProps, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { createOrderComment, createComment, createCommentWithTags, getRecommendedTags } from '@/api/comment'
+import { createOrderComment, createComment, createCommentWithTags, getRecommendedTags, createCommentTag } from '@/api/comment'
 import TagSelector from '../common/TagSelector.vue'
 
 const props = defineProps({
@@ -217,21 +217,48 @@ const submitComment = async () => {
         commentForm.images = imageBase64List
         commentForm.isAnonymous = commentForm.isAnonymous ? 1 : 0
         
-        // 处理标签
-        const tagIds = commentForm.tags
+        // 1. 获取现有标签ID列表
+        const existingTagIds = commentForm.tags
           .filter(tag => !String(tag.tagId).startsWith('new-'))
           .map(tag => tag.tagId)
+        console.log('现有标签IDs:', existingTagIds)
         
-        // 获取新标签名称列表
+        // 2. 获取新标签名称列表
         const newTags = commentForm.tags
           .filter(tag => String(tag.tagId).startsWith('new-'))
           .map(tag => tag.tagName)
+        console.log('新标签名称:', newTags)
         
-        // 提交评价（带标签）
-        const { data } = await createCommentWithTags({
+        // 3. 创建新标签并获取新标签ID
+        const newTagIds = []
+        for (const tagName of newTags) {
+          try {
+            console.log(`创建新标签: ${tagName}`)
+            const res = await createCommentTag(tagName)
+            if (res.data && res.data.tagId) {
+              console.log(`标签创建成功，ID: ${res.data.tagId}`)
+              newTagIds.push(res.data.tagId)
+            } else {
+              console.warn(`标签创建返回异常数据:`, res)
+            }
+          } catch (error) {
+            console.error(`创建标签 "${tagName}" 失败:`, error)
+            // 继续处理其他标签，不中断流程
+          }
+        }
+        
+        // 4. 合并所有标签ID
+        const allTagIds = [...existingTagIds, ...newTagIds]
+        console.log('最终标签IDs列表:', allTagIds)
+        
+        // 5. 准备提交的评价数据，使用处理后的标签ID
+        const commentData = {
           ...commentForm,
-          tags: commentForm.tags
-        })
+          tags: allTagIds.map(id => ({ tagId: id }))
+        }
+        
+        // 6. 提交评价（带标签）
+        const { data } = await createCommentWithTags(commentData)
         
         if (data) {
           ElMessage.success('评价提交成功')

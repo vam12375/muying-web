@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
+import { isAuthenticated } from '@/utils/auth'
 
 // 导入API函数
 let userApi = null
@@ -30,8 +31,8 @@ export const useFavoriteStore = defineStore('favorite', () => {
       return
     }
     
-    const token = localStorage.getItem('token')
-    if (!token) {
+    // 使用auth.js的isAuthenticated函数检查用户登录状态
+    if (!isAuthenticated()) {
       console.log('用户未登录，不加载收藏状态')
       // 清空收藏列表，确保未登录状态下没有收藏数据
       favoriteIds.value = []
@@ -105,8 +106,9 @@ export const useFavoriteStore = defineStore('favorite', () => {
   const addFavorite = async (productId) => {
     if (!productId) return false
     
-    const token = localStorage.getItem('token')
-    if (!token) {
+    // 使用auth.js的isAuthenticated函数检查用户登录状态
+    if (!isAuthenticated()) {
+      console.log('addFavorite: 用户未登录，无法添加收藏')
       ElMessage.warning('请先登录后再收藏商品')
       return false
     }
@@ -121,6 +123,7 @@ export const useFavoriteStore = defineStore('favorite', () => {
       }
       
       loading.value = true
+      console.log('添加收藏，商品ID:', productId)
       
       // 先本地更新状态，提供更好的用户体验
       // 添加到收藏列表
@@ -134,10 +137,12 @@ export const useFavoriteStore = defineStore('favorite', () => {
       
       try {
         const api = await importApi()
+        console.log('调用API添加收藏，商品ID:', productId)
         const response = await api.addFavorite(productId)
         console.log('添加收藏响应:', response)
         
         if (response && response.code === 200) {
+          console.log('添加收藏成功，触发全局事件通知')
           // 触发全局事件通知
           window.dispatchEvent(new CustomEvent('favorite:updated', {
             detail: { action: 'add', productId }
@@ -172,8 +177,9 @@ export const useFavoriteStore = defineStore('favorite', () => {
   const removeFavorite = async (productId) => {
     if (!productId) return false
     
-    const token = localStorage.getItem('token')
-    if (!token) {
+    // 使用auth.js的isAuthenticated函数检查用户登录状态
+    if (!isAuthenticated()) {
+      console.log('removeFavorite: 用户未登录，无法取消收藏')
       ElMessage.warning('请先登录后再操作收藏')
       return false
     }
@@ -187,6 +193,7 @@ export const useFavoriteStore = defineStore('favorite', () => {
       }
       
       loading.value = true
+      console.log('取消收藏，商品ID:', productId)
       const api = await importApi()
       
       // 在API调用前先本地更新状态，提供更好的用户体验
@@ -207,12 +214,14 @@ export const useFavoriteStore = defineStore('favorite', () => {
         
         try {
           // 方式1: 使用productId作为路径参数
+          console.log('尝试方式1取消收藏，商品ID:', productId)
           response = await api.removeFavorite(productId)
           console.log('取消收藏响应 (方式1):', response)
         } catch (err) {
           console.warn('使用方式1取消收藏失败，尝试方式2:', err)
           
           // 方式2: 尝试直接使用/user/favorites接口并传递productId作为参数
+          console.log('尝试方式2取消收藏，商品ID:', productId)
           response = await request({
             url: '/user/favorites',
             method: 'delete',
@@ -222,6 +231,7 @@ export const useFavoriteStore = defineStore('favorite', () => {
         }
         
         if (response && response.code === 200) {
+          console.log('取消收藏成功，触发全局事件通知')
           // 触发全局事件通知
           window.dispatchEvent(new CustomEvent('favorite:updated', {
             detail: { action: 'remove', productId }

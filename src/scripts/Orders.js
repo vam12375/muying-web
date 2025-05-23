@@ -26,7 +26,8 @@ export function useOrders() {
     pendingPayment: 0,
     pendingShipment: 0,
     pendingReceive: 0,
-    completed: 0
+    completed: 0,
+    cancelled: 0
   })
 
   // 筛选条件
@@ -66,6 +67,13 @@ export function useOrders() {
       status: 'completed',
       icon: SuccessFilled,
       colorClass: 'status-completed' 
+    },
+    { 
+      title: '已取消', 
+      key: 'cancelled', 
+      status: 'cancelled',
+      icon: Delete,
+      colorClass: 'status-cancelled' 
     }
   ]
 
@@ -123,22 +131,37 @@ export function useOrders() {
   // 获取订单统计
   const fetchOrderStats = async () => {
     try {
+      console.log('开始获取订单统计数据')
       const stats = await orderStore.fetchOrderStats()
+      console.log('获取到订单统计数据:', stats)
+      
       // 确保返回的stats是一个有效对象，并包含所有必要的属性
       orderStats.value = {
         pendingPayment: stats?.pendingPayment || 0,
         pendingShipment: stats?.pendingShipment || 0,
         pendingReceive: stats?.pendingReceive || 0,
-        completed: stats?.completed || 0
+        completed: stats?.completed || 0,
+        cancelled: stats?.cancelled || 0
       }
+      
+      // 特别检查cancelled状态数量
+      if (stats?.cancelled !== undefined) {
+        console.log('已取消订单数量:', stats.cancelled)
+      } else {
+        console.warn('警告: 订单统计数据中缺少已取消订单数量')
+      }
+      
+      console.log('更新后的订单统计数据:', orderStats.value)
     } catch (error) {
       console.error('获取订单统计失败:', error)
-      // 确保错误时orderStats保持默认值
+      // 确保错误时orderStats保持默认值，但保留已有的值（如果存在）
+      const oldCancelled = orderStats.value?.cancelled || 0
       orderStats.value = {
-        pendingPayment: 0,
-        pendingShipment: 0,
-        pendingReceive: 0,
-        completed: 0
+        pendingPayment: orderStats.value?.pendingPayment || 0,
+        pendingShipment: orderStats.value?.pendingShipment || 0,
+        pendingReceive: orderStats.value?.pendingReceive || 0,
+        completed: orderStats.value?.completed || 0,
+        cancelled: oldCancelled  // 保留原有已取消订单数量
       }
     }
   }
@@ -207,9 +230,37 @@ export function useOrders() {
         type: 'warning'
       })
       
-      await orderStore.cancelOrder(orderId)
-      ElMessage.success('订单已取消')
-      fetchOrders()
+      const success = await orderStore.cancelOrder(orderId)
+      if (success) {
+        ElMessage.success('订单已取消')
+        
+        // 直接更新本地订单统计数据
+        if (orderStats.value) {
+          // 增加已取消订单数量
+          orderStats.value.cancelled = (orderStats.value.cancelled || 0) + 1
+          
+          // 因为无法确定原订单状态，所以使用统一的更新方式
+          // 根据订单列表查找被取消的订单的原始状态
+          const cancelledOrder = orderList.value.find(order => order.orderId === orderId)
+          if (cancelledOrder) {
+            const origStatus = cancelledOrder.status
+            
+            // 根据原始状态减少相应的计数
+            if (origStatus === 'pending_payment' || origStatus === '待支付') {
+              orderStats.value.pendingPayment = Math.max(0, (orderStats.value.pendingPayment || 0) - 1)
+            } else if (origStatus === 'pending_shipment') {
+              orderStats.value.pendingShipment = Math.max(0, (orderStats.value.pendingShipment || 0) - 1)
+            } else if (origStatus === 'pending_receive' || origStatus === 'shipped') {
+              orderStats.value.pendingReceive = Math.max(0, (orderStats.value.pendingReceive || 0) - 1)
+            }
+          }
+          
+          console.log('已更新本地订单统计数据，已取消订单数量:', orderStats.value.cancelled)
+        }
+        
+        // 重新获取订单列表和统计数据
+        fetchOrders()
+      }
     } catch (error) {
       if (error !== 'cancel') {
         console.error('取消订单失败:', error)

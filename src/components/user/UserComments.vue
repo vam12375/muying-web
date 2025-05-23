@@ -291,7 +291,7 @@ import {
   getUserComments, 
   deleteComment, 
   updateComment, 
-  getUserCommentPage, 
+  getUserCommentPage,
   searchUserComments,
   getCommentReplies,
   deleteCommentReply,
@@ -300,7 +300,8 @@ import {
   getCommentTags,
   updateCommentTags,
   getUserCommentsByTag,
-  getUserCommentStats
+  getUserCommentStats,
+  createCommentTag
 } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import { Picture, Edit, Delete, Close, Plus, Search, Sort, ChatDotRound } from '@element-plus/icons-vue'
@@ -566,6 +567,7 @@ const submitEditForm = async () => {
     if (valid) {
       submitting.value = true
       try {
+        console.log('开始更新评价:', editForm.commentId)
         // 准备提交数据
         const formData = {
           commentId: editForm.commentId,
@@ -576,22 +578,56 @@ const submitEditForm = async () => {
         }
         
         // 更新评价
+        console.log('更新评价基本信息...')
         await updateComment(editForm.commentId, formData)
         
-        // 更新标签
-        const tagIds = editForm.tags
-          .filter(tag => !String(tag.tagId).startsWith('new-')) // 过滤掉临时ID的标签
+        // 处理标签更新
+        console.log('处理评价标签更新...')
+        // 1. 获取现有标签ID列表
+        const existingTagIds = editForm.tags
+          .filter(tag => !String(tag.tagId).startsWith('new-'))
           .map(tag => tag.tagId)
+        console.log('现有标签IDs:', existingTagIds)
         
-        // 获取新标签名称列表
+        // 2. 获取新标签名称列表
         const newTags = editForm.tags
           .filter(tag => String(tag.tagId).startsWith('new-'))
           .map(tag => tag.tagName)
+        console.log('新标签名称:', newTags)
         
-        // TODO: 处理新标签的创建和关联
+        // 3. 创建新标签并获取新标签ID
+        const newTagIds = []
+        for (const tagName of newTags) {
+          try {
+            console.log(`创建新标签: ${tagName}`)
+            const res = await createCommentTag(tagName)
+            if (res.data && res.data.tagId) {
+              console.log(`标签创建成功，ID: ${res.data.tagId}`)
+              newTagIds.push(res.data.tagId)
+            } else {
+              console.warn(`标签创建返回异常数据:`, res)
+            }
+          } catch (error) {
+            console.error(`创建标签 "${tagName}" 失败:`, error)
+            // 继续处理其他标签，不中断流程
+          }
+        }
         
-        await updateCommentTags(editForm.commentId, tagIds)
+        // 4. 合并所有标签ID
+        const allTagIds = [...existingTagIds, ...newTagIds]
+        console.log('最终标签IDs列表:', allTagIds)
         
+        // 5. 更新评价标签关联
+        if (allTagIds.length > 0) {
+          console.log('更新评价标签关联...')
+          await updateCommentTags(editForm.commentId, allTagIds)
+        } else {
+          console.log('没有标签需要更新，清空所有标签')
+          // 发送空数组以清空所有标签
+          await updateCommentTags(editForm.commentId, [])
+        }
+        
+        console.log('评价更新完成')
         ElMessage.success('评价修改成功')
         editDialogVisible.value = false
         
@@ -599,7 +635,19 @@ const submitEditForm = async () => {
         fetchComments()
       } catch (error) {
         console.error('更新评价失败', error)
-        ElMessage.error('更新评价失败')
+        let errorMessage = '更新评价失败'
+        
+        // 提取详细错误信息
+        if (error.message) {
+          errorMessage = error.message
+        }
+        
+        // 检查是否是标签相关错误
+        if (errorMessage.includes('标签')) {
+          errorMessage = `标签更新失败: ${errorMessage}`
+        }
+        
+        ElMessage.error(errorMessage)
       } finally {
         submitting.value = false
       }

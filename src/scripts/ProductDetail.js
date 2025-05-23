@@ -6,6 +6,7 @@ import { useFavoriteStore } from '@/stores/favorite'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProductDetail, getRecommendedProducts, getProductDetailWithParams } from '@/api/product'
 import { addToCart as addToCartApi } from '@/api/cart'
+import { isAuthenticated } from '@/utils/auth'
 
 export const useProductDetail = () => {
   const route = useRoute()
@@ -449,9 +450,12 @@ export const useProductDetail = () => {
   const buyNow = () => {
     if (!product.value) return
     
-    // 检查用户是否已登录
-    const token = localStorage.getItem('token')
-    if (!token) {
+    // 检查用户是否已登录，使用auth.js中的isAuthenticated函数
+    const authenticated = isAuthenticated()
+    console.log('立即购买 - 认证状态检查结果:', authenticated ? '已认证' : '未认证')
+    
+    if (!authenticated) {
+      console.log('立即购买: 用户未登录')
       ElMessage.warning('请先登录后再购买商品')
       router.push({
         path: '/login',
@@ -459,6 +463,9 @@ export const useProductDetail = () => {
       })
       return
     }
+    
+    // 用户已认证，继续操作
+    console.log('立即购买 - 用户已认证，继续处理')
     
     try {
       // 检查规格是否已选择(如果有规格需要选择)
@@ -500,6 +507,7 @@ export const useProductDetail = () => {
         const tempOrderId = 'temp_buy_now_' + Date.now()
         orderProductsMap[tempOrderId] = [orderItem]
         localStorage.setItem('orderProductsMap', JSON.stringify(orderProductsMap))
+        console.log('立即购买 - 商品信息已保存到本地存储，准备跳转到结算页面')
       } catch (e) {
         console.error('保存订单商品信息到本地存储失败:', e)
       }
@@ -831,9 +839,12 @@ export const useProductDetail = () => {
       return
     }
     
-    // 检查用户是否已登录
-    const token = localStorage.getItem('token')
-    if (!token) {
+    // 检查用户是否已登录，使用auth.js中的isAuthenticated函数
+    const authenticated = isAuthenticated()
+    console.log('收藏操作 - 认证状态检查结果:', authenticated ? '已认证' : '未认证')
+    
+    if (!authenticated) {
+      console.log('收藏商品: 用户未登录')
       ElMessage.warning('请先登录后再收藏商品')
       router.push({
         path: '/login',
@@ -841,6 +852,9 @@ export const useProductDetail = () => {
       })
       return
     }
+    
+    // 用户已认证，继续操作
+    console.log('收藏操作 - 用户已认证，继续处理')
     
     try {
       // 确保能正确获取商品ID
@@ -866,10 +880,12 @@ export const useProductDetail = () => {
       
       // 确保收藏store已初始化
       if (!favoriteStore.initialized) {
+        console.log('收藏store未初始化，执行初始化')
         await favoriteStore.initFavorites()
       }
       
       // 调用store的toggleFavorite方法
+      console.log('调用favoriteStore.toggleFavorite, 商品ID:', productId)
       const success = await favoriteStore.toggleFavorite(productId)
       console.log('收藏状态切换结果:', success ? '成功' : '失败')
       

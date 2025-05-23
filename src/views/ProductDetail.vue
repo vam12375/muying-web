@@ -1330,40 +1330,50 @@ const addToCart = async () => {
   try {
     loading.value = true
     
-    // 准备购物车数据，包含价格快照
-    const cartData = {
-      goodsId: product.value.goodsId || product.value.id,
-      quantity: quantity.value,
+    // 准备商品数据对象
+    const productData = {
+      id: product.value.goodsId || product.value.id || product.value.productId,
+      productId: product.value.goodsId || product.value.id || product.value.productId,
+      productName: product.value.goodsName || product.value.productName || product.value.goods_name,
+      productImg: product.value.goodsImg || product.value.productImg || product.value.goods_img,
+      priceNew: Number(product.value.price_new || product.value.priceNew || product.value.price || 0),
+      priceOld: Number(product.value.price_old || product.value.priceOld || product.value.originalPrice || 0),
       specs: getSelectedSpecsFormatted(),
-      // 添加价格快照字段
-      priceSnapshot: Number(product.value.price_new || product.value.priceNew || product.value.price || 0)
+      stock: product.value.stock
     }
     
     // 保存商品详情到localStorage，提供添加购物车参考
     const productDetails = JSON.parse(localStorage.getItem('productDetails') || '{}')
-    productDetails[cartData.goodsId] = {...product.value}
+    productDetails[productData.id] = {...product.value}
     localStorage.setItem('productDetails', JSON.stringify(productDetails))
     
-    const res = await originalAddToCart(cartData)
+    console.log('准备添加到购物车的商品:', productData);
     
-    if (res && res.code === 200) {
-      ElMessage.success('已添加到购物车')
-      
-      // 更新顶部购物车图标的数量
+    // 使用cartStore添加到购物车
       const cartStore = useCartStore();
-      if (cartStore) {
-        // 刷新购物车数据，让商店自己更新计数
-        cartStore.getCartItems();
-      } else {
-        // 如果商店不可用，才使用本地存储计数
-        const currentCount = parseInt(localStorage.getItem('cartCount') || '0');
-        localStorage.setItem('cartCount', (currentCount + quantity.value).toString());
+    const result = await cartStore.addProductToCart(productData, quantity.value);
+    
+    if (result) {
+      ElMessage.success('商品已成功添加到购物车')
+      
+      // 触发购物车弹窗显示
+      cartPopupProduct.value = {
+        id: productData.id,
+        name: productData.productName,
+        image: getImageUrl(productData.productImg),
+        price: productData.priceNew,
+        quantity: quantity.value,
+        specs: productData.specs || ''
       }
+      cartPopupVisible.value = true
+      
+      // 更新购物车数量显示
+      cartCount.value = cartStore.totalCount
       
       // 触发购物车更新事件
       window.dispatchEvent(new CustomEvent('cart:updated'))
     } else {
-      ElMessage.warning(res?.message || '添加购物车失败')
+      ElMessage.warning('添加购物车失败，请稍后重试')
     }
   } catch (error) {
     console.error('添加购物车异常:', error)

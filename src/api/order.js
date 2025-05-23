@@ -128,10 +128,24 @@ export function reviewOrder(orderId, data) {
  * @returns {Promise} 返回申请结果
  */
 export function applyRefund(orderId, data) {
+  // 获取当前登录用户ID
+  const userId = localStorage.getItem('userId');
+  
+  // 创建请求参数对象
+  const params = {
+    orderId: orderId,
+    userId: userId,
+    amount: data.amount,
+    reason: data.reason,
+    reasonDetail: data.reasonDetail || '',
+    // 确保evidenceImages是有效的JSON字符串格式，对于空数组使用'[]'
+    evidenceImages: data.evidenceImages ? JSON.stringify(data.evidenceImages) : '[]'
+  };
+  
   return request({
-    url: `/order/${orderId}/refund`,
+    url: '/api/refund/apply',
     method: 'post',
-    data
+    params  // 使用params发送查询参数
   });
 }
 
@@ -144,5 +158,18 @@ export function getShippingInfo(orderId) {
   return request({
     url: `/order/${orderId}/shipping`,
     method: 'get'
+  });
+}
+
+/**
+ * 直接购买商品（不添加到购物车）
+ * @param {Object} data - 直接购买数据
+ * @returns {Promise} 返回创建结果
+ */
+export function directPurchase(data) {
+  return request({
+    url: '/order/direct-purchase',
+    method: 'post',
+    data
   });
 }

@@ -186,15 +186,21 @@
         <div class="section-header">
           <div class="logistics-header">
             <span>物流信息</span>
-            <el-button 
-              type="primary" 
-              size="small" 
-              @click="fetchLogisticsInfo" 
-              :loading="logisticsLoading"
-              class="refresh-button"
-            >
-              刷新物流
-            </el-button>
+            <div class="refresh-controls">
+              <span v-if="isAutoRefreshing" class="auto-refresh-indicator">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>每5分钟自动刷新</span>
+              </span>
+              <el-button 
+                type="primary" 
+                size="small" 
+                @click="fetchLogisticsInfo" 
+                :loading="logisticsLoading"
+                class="refresh-button"
+              >
+                手动刷新
+              </el-button>
+            </div>
           </div>
         </div>
         <div class="section-content">
@@ -292,6 +298,22 @@
         </el-button>
         
         <el-button 
+          v-if="canRefund(orderDetail.status) && !hasActiveRefund"
+          type="warning" 
+          @click="openRefundDialog"
+        >
+          申请退款
+        </el-button>
+        
+        <el-button 
+          v-if="hasActiveRefund"
+          type="info" 
+          @click="viewRefundStatus"
+        >
+          查看退款
+        </el-button>
+        
+        <el-button 
           v-if="orderDetail.status === 'completed' && !orderDetail.isCommented"
           type="primary" 
           @click="goToReview"
@@ -348,17 +370,134 @@
         </div>
       </div>
     </div>
+  
+    <!-- 添加退款申请弹窗 -->
+    <el-dialog
+      v-model="refundDialogVisible"
+      title="申请退款"
+      width="500px"
+      destroy-on-close
+    >
+      <el-form :model="refundForm" :rules="refundRules" ref="refundFormRef" label-width="100px">
+        <el-form-item label="退款金额" prop="amount">
+          <el-input-number 
+            v-model="refundForm.amount" 
+            :min="0.01" 
+            :max="orderDetail.actualAmount" 
+            :precision="2" 
+            :step="0.01"
+            style="width: 100%;"
+          />
+          <div class="form-tip">最多可退 ¥{{ formatPrice(orderDetail.actualAmount) }}</div>
+        </el-form-item>
+        
+        <el-form-item label="退款原因" prop="reason">
+          <el-select v-model="refundForm.reason" placeholder="请选择退款原因" style="width: 100%;">
+            <el-option label="商品质量问题" value="商品质量问题" />
+            <el-option label="商品不符合描述" value="商品不符合描述" />
+            <el-option label="发货太慢" value="发货太慢" />
+            <el-option label="不想要了" value="不想要了" />
+            <el-option label="其他原因" value="其他原因" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="详细说明" prop="reasonDetail">
+          <el-input 
+            v-model="refundForm.reasonDetail" 
+            type="textarea" 
+            :rows="3" 
+            placeholder="请详细描述您的退款原因"
+          />
+        </el-form-item>
+        
+        <el-form-item label="上传凭证">
+          <el-upload
+            action=""
+            list-type="picture-card"
+            :auto-upload="false"
+            :file-list="refundForm.evidenceFiles"
+            :on-change="handleFileChange"
+            :on-remove="handleFileRemove"
+            :limit="3"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+          <div class="form-tip">最多上传3张凭证图片（选填）</div>
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="refundDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmitRefund" :loading="refundSubmitting">提交申请</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 退款状态弹窗 -->
+    <el-dialog
+      v-model="refundStatusDialogVisible"
+      title="退款申请状态"
+      width="500px"
+      destroy-on-close
+    >
+      <div v-if="refundDetail">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="退款单号">{{ refundDetail.refundNo }}</el-descriptions-item>
+          <el-descriptions-item label="申请时间">{{ formatDate(refundDetail.createTime) }}</el-descriptions-item>
+          <el-descriptions-item label="退款金额">¥{{ formatPrice(refundDetail.amount) }}</el-descriptions-item>
+          <el-descriptions-item label="退款原因">{{ refundDetail.refundReason }}</el-descriptions-item>
+          <el-descriptions-item label="当前状态">
+            <el-tag :type="getRefundStatusType(refundDetail.status)">
+              {{ getRefundStatusText(refundDetail.status) }}
+            </el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <div class="refund-actions" v-if="refundDetail.status === 'PENDING'">
+          <el-button type="danger" @click="handleCancelRefund" :loading="cancellingRefund">取消申请</el-button>
+        </div>
+      </div>
+      <div v-else class="loading-container">
+        <div class="error-message" v-if="refundLoadError">
+          <el-alert
+            :title="refundLoadError"
+            type="warning"
+            :closable="false"
+            show-icon
+          >
+            <template #default>
+              <p>如果您确实已申请了退款，请尝试：</p>
+              <ol>
+                <li>点击"申请退款"按钮创建退款申请</li>
+                <li>稍后再试</li>
+                <li>联系客服获取帮助</li>
+              </ol>
+            </template>
+          </el-alert>
+        </div>
+        <el-skeleton v-else :rows="5" animated />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { ArrowLeft, RefreshRight, InfoFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, RefreshRight, InfoFilled, Plus, Loading } from '@element-plus/icons-vue'
 import { useOrderDetail } from '@/scripts/OrderDetail'
 import LogisticsTrackTimeline from '@/components/LogisticsTrackTimeline.vue'
 import { useRouter } from 'vue-router'
 import { getOrderComments } from '@/api/comment'
 import { ElMessage } from 'element-plus'
+
+// 定义props接收从路由中传递的orderId
+const props = defineProps({
+  orderId: {
+    type: [String, Number],
+    default: null
+  }
+})
 
 const router = useRouter()
 
@@ -389,7 +528,24 @@ const {
   getOrderStatusText,
   getLogisticsStatusText,
   getStatusColor,
-  clearAutoRefresh  // 添加clearAutoRefresh函数
+  clearAutoRefresh,  // 添加clearAutoRefresh函数
+  canRefund,
+  hasActiveRefund,
+  openRefundDialog,
+  viewRefundStatus,
+  refundDialogVisible,
+  refundStatusDialogVisible,
+  refundDetail,
+  refundSubmitting,
+  getRefundStatusType,
+  getRefundStatusText,
+  cancellingRefund,
+  isAutoRefreshing,
+  refundForm,
+  refundRules,
+  refundLoadError,
+  submitRefund,  // 添加submitRefund函数
+  cancelRefund   // 添加cancelRefund函数
 } = useOrderDetail()
 
 // 前往评价页面
@@ -424,18 +580,24 @@ onBeforeUnmount(() => {
   clearAutoRefresh()
 })
 
-// 获取支付方式显示文本
-const getPaymentMethodText = (method) => {
-  if (!method) return '未支付'
+// 获取支付方式文本
+const getPaymentMethodText = (paymentMethod) => {
+  // 如果是对象，尝试获取对象中的名称属性
+  if (paymentMethod && typeof paymentMethod === 'object') {
+    return paymentMethod.name || paymentMethod.type || JSON.stringify(paymentMethod);
+  }
   
+  // 如果是字符串，映射到对应的中文名称
   const methodMap = {
     'alipay': '支付宝',
     'wechat': '微信支付',
-    'wallet': '钱包支付'
-  }
+    'bank_transfer': '银行转账',
+    'cash': '货到付款',
+    'points': '积分支付'
+  };
   
-  return methodMap[method] || method
-}
+  return methodMap[paymentMethod] || paymentMethod || '未知';
+};
 
 // 获取订单进度条类
 const getProgressClass = (status) => {
@@ -447,8 +609,78 @@ const getProgressClass = (status) => {
   }
   return classMap[status] || ''
 }
+
+// 退款表单引用
+const refundFormRef = ref(null)
+
+// 处理文件上传和移除
+const handleFileChange = (file) => {
+  // 确保文件是图片
+  const isImage = file.raw.type.startsWith('image/')
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件!')
+    return false
+  }
+  
+  // 确保文件大小小于2MB
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过2MB!')
+    return false
+  }
+  
+  return true
+}
+
+const handleFileRemove = (file) => {
+  // 从文件列表中移除
+  const index = refundForm.evidenceFiles.indexOf(file)
+  if (index !== -1) {
+    refundForm.evidenceFiles.splice(index, 1)
+  }
+}
+
+// 提交退款申请
+const handleSubmitRefund = () => {
+  refundFormRef.value.validate((valid) => {
+    if (valid) {
+      submitRefund(refundFormRef.value)
+    } else {
+      return false
+    }
+  })
+}
+
+// 取消退款申请
+const handleCancelRefund = () => {
+  cancelRefund()
+}
 </script>
 
 <style lang="scss">
 @import '@/styles/OrderDetail.scss';
+
+.logistics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.refresh-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auto-refresh-indicator {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #409EFF;
+}
+
+.auto-refresh-indicator .el-icon {
+  margin-right: 5px;
+}
 </style> 

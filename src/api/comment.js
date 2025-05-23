@@ -345,6 +345,25 @@ export function updateCommentTags(commentId, tagIds) {
 }
 
 /**
+ * 创建新的评价标签
+ * @param {string} tagName - 标签名称
+ * @param {number} tagType - 标签类型(1-系统标签, 2-用户自定义标签)
+ * @param {number} [categoryId] - 关联的商品分类ID(可选)
+ * @returns {Promise}
+ */
+export function createCommentTag(tagName, tagType = 2, categoryId = null) {
+  return request({
+    url: '/comment/tags',
+    method: 'post',
+    data: {
+      tagName,
+      tagType,
+      categoryId
+    }
+  })
+}
+
+/**
  * 删除评价标签
  * @param {number} commentId - 评价ID
  * @param {number} tagId - 标签ID

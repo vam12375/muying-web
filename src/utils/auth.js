@@ -248,7 +248,45 @@ export function clearAuth(isAdmin = false) {
  * @returns {boolean} 是否已登录
  */
 export function isAuthenticated() {
-  return !!getToken();
+  const token = getToken();
+  
+  if (!token) {
+    console.log('auth.js isAuthenticated: 无token，未登录');
+    return false;
+  }
+  
+  // 检查token是否有效格式
+  if (token.startsWith('Bearer ')) {
+    // 进一步验证token是否为有效JWT格式
+    const tokenWithoutBearer = token.substring(7);
+    const parts = tokenWithoutBearer.split('.');
+    
+    // JWT应该有3个部分，用.分隔
+    if (parts.length !== 3) {
+      console.warn('auth.js isAuthenticated: token格式无效，未登录');
+      return false;
+    }
+    
+    // 尝试解析token
+    const parsed = parseJwt(token);
+    if (!parsed) {
+      console.warn('auth.js isAuthenticated: token无法解析，未登录');
+      return false;
+    }
+    
+    // 检查token是否过期
+    if (parsed.exp && parsed.exp * 1000 < Date.now()) {
+      console.warn('auth.js isAuthenticated: token已过期，未登录');
+      return false;
+    }
+    
+    console.log('auth.js isAuthenticated: token有效，已登录');
+    return true;
+  }
+  
+  // 如果token不是Bearer格式，可能是旧格式或无效格式
+  console.warn('auth.js isAuthenticated: token格式不正确，未登录');
+  return false;
 }
 
 /**

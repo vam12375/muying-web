@@ -304,6 +304,7 @@ export default {
       }
     },
     navigateToProduct(productId) {
+      console.log('导航到商品详情页:', productId);
       this.$router.push(`/product/${productId}`);
     },
     addToCart(product) {

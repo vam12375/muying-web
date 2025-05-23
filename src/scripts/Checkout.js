@@ -9,7 +9,8 @@ import { getUserAddresses, getUserCoupons } from '@/api/user';
 import { getAvailableCouponsForOrder, validateCoupon } from '@/api/coupon';
 import { getUserPoints } from '@/api/points';
 import { regionData } from '@/utils/regionData';
-import { getUserInfo as getAuthUserInfo, ensureUserId } from '@/utils/auth';
+import { getUserInfo as getAuthUserInfo, ensureUserId, isAuthenticated } from '@/utils/auth';
+import { processDbGoodsImage } from '@/utils/dbImageHelper'; // 导入图片处理函数
 
 export default function useCheckout() {
   const router = useRouter();
@@ -69,7 +70,49 @@ export default function useCheckout() {
   const selectedItems = computed(() => {
     console.log('[Checkout Debug] 计算selectedItems, cartStore.selectedItems:', cartStore.selectedItems);
     
-    // 首先尝试从localStorage读取选中商品
+    // 检查结算来源 - 通过localStorage中的checkoutItems判断
+    const hasCheckoutItems = !!localStorage.getItem('checkoutItems');
+    const hasBuyNowItems = !!localStorage.getItem('buyNow');
+    
+    // 只有在没有checkoutItems的情况下才考虑buyNow（立即购买）
+    if (!hasCheckoutItems && hasBuyNowItems) {
+      console.log('[Checkout Debug] 检测到立即购买场景（无checkoutItems，有buyNow）');
+      
+      try {
+        const buyNowItem = localStorage.getItem('buyNow');
+        // 解析单个商品数据
+        const item = JSON.parse(buyNowItem);
+        console.log('[Checkout Debug] "立即购买"商品:', item);
+        
+        if (item && (item.id || item.goodsId || item.productId)) {
+          // 设置订单来源为"立即购买"
+          orderSource.value = 'buy_now';
+          
+          // 规范化商品数据格式
+          const formattedItem = {
+            id: item.id || item.goodsId || item.productId,
+            cartId: item.cartId || item.id || item.goodsId || item.productId,
+            productId: item.productId || item.goodsId || item.id,
+            productName: item.name || item.goodsName || item.productName || '未命名商品',
+            productImage: processDbGoodsImage(item.image || item.goodsImg || item.productImage || ''),
+            price: parseFloat(item.price || item.unitPrice || item.priceNew || 0),
+            quantity: parseInt(item.quantity || item.count || 1),
+            specs: item.specs || item.spec || '默认规格',
+            selected: 1,
+            buyNow: true // 标记为立即购买商品
+          };
+          
+          console.log('[Checkout Debug] 使用"立即购买"商品数据, 商品ID:', formattedItem.productId);
+          return [formattedItem]; // 返回单个商品数组
+        }
+      } catch (e) {
+        console.error('[Checkout Debug] 解析"立即购买"商品数据失败:', e);
+      }
+    } else if (hasCheckoutItems) {
+      console.log('[Checkout Debug] 检测到购物车结算场景（有checkoutItems）');
+    }
+    
+    // 尝试从localStorage读取结算选中商品
     try {
       const storedItems = localStorage.getItem('checkoutItems');
       if (storedItems) {
@@ -84,7 +127,7 @@ export default function useCheckout() {
             cartId: item.cartId || item.id,
             productId: item.productId,
             productName: item.productName || item.title || '未命名商品',
-            productImage: item.productImage || item.image || '',
+            productImage: processDbGoodsImage(item.productImage || item.image || ''),
             price: item.price || item.priceSnapshot || 0,
             quantity: item.quantity || 1,
             specs: Array.isArray(item.specs) ? item.specs.join(', ') : (item.specs || item.specification || '默认规格'),
@@ -116,7 +159,7 @@ export default function useCheckout() {
           cartId: item.cartId || item.id,
           productId: item.productId,
           productName: item.productName || item.title || '未命名商品',
-          productImage: item.productImage || item.image || '',
+          productImage: processDbGoodsImage(item.productImage || item.image || ''),
           price: item.price || item.priceSnapshot || 0,
           quantity: item.quantity || 1,
           specs: Array.isArray(item.specs) ? item.specs.join(', ') : (item.specs || item.specification || '默认规格'),
@@ -140,7 +183,7 @@ export default function useCheckout() {
           cartId: item.cartId || item.id,
           productId: item.productId,
           productName: item.productName || item.title || '未命名商品',
-          productImage: item.productImage || item.image || '',
+          productImage: processDbGoodsImage(item.productImage || item.image || ''),
           price: item.price || item.priceSnapshot || 0,
           quantity: item.quantity || 1,
           specs: Array.isArray(item.specs) ? item.specs.join(', ') : (item.specs || item.specification || '默认规格'),
@@ -375,6 +418,25 @@ export default function useCheckout() {
       console.log('[Checkout Debug] cartStore.hasSelectedItems:', cartStore.hasSelectedItems);
       console.log('[Checkout Debug] cartStore.cartItems长度:', cartStore.cartItems.length);
       
+      // 检查是否来自"立即购买"功能
+      let buyNowData = null;
+      try {
+        const buyNowItem = localStorage.getItem('buyNow');
+        if (buyNowItem) {
+          buyNowData = JSON.parse(buyNowItem);
+          console.log('[Checkout Debug] 检测到"立即购买"数据:', {
+            id: buyNowData.id || buyNowData.goodsId || buyNowData.productId,
+            name: buyNowData.name || buyNowData.goodsName || buyNowData.productName,
+            price: buyNowData.price || buyNowData.priceNew || buyNowData.unitPrice,
+          });
+          
+          // 设置订单来源标记
+          orderSource.value = 'buy_now';
+        }
+      } catch (e) {
+        console.error('[Checkout Debug] 处理"立即购买"数据失败:', e);
+      }
+      
       // 尝试从localStorage读取已保存的结算商品信息
       let localStorageItems = [];
       try {
@@ -406,9 +468,17 @@ export default function useCheckout() {
       
       // 判断购物车选中商品状态
       if (selectedItems.value.length === 0) {
+        // 检查是否存在立即购买数据
+        const hasBuyNowData = localStorage.getItem('buyNow') !== null;
+        
+        if (hasBuyNowData) {
+          console.log('[Checkout Debug] 虽然selectedItems为空，但检测到立即购买数据，将继续处理');
+          // 立即购买场景下会在selectedItems计算属性中处理数据，此处无需额外处理
+        } else {
         console.error('[Checkout Debug] 没有选中的商品，无法进行结算');
         error.value = '购物车中没有选中的商品，请返回购物车选择商品后再进行结算。如果已选择商品，请刷新购物车后再尝试结算。';
         return;
+        }
       } else {
         console.log('[Checkout Debug] 已选商品数量:', selectedItems.value.length);
         
@@ -967,22 +1037,15 @@ export default function useCheckout() {
 
   // 提交订单
   async function submitOrder() {
+    try {
     // 表单验证
     if (!selectedAddress.value) {
       ElMessage.warning('请选择收货地址');
       return;
     }
     
-    if (!selectedShipping.value) {
-      ElMessage.warning('请选择配送方式');
-      return;
-    }
-    
-    // 确认提交
-    try {
-      await ElMessageBox.confirm(
-        `确认提交订单？总计：￥${formatPrice(total.value)}`,
-        '提交订单',
+      // 确认是否提交订单
+      await ElMessageBox.confirm('确认提交订单吗？', '提交确认',
         {
           confirmButtonText: '确认',
           cancelButtonText: '取消',
@@ -1025,16 +1088,78 @@ export default function useCheckout() {
         throw new Error('无法获取用户ID，请重新登录');
       }
       
-      // 构建订单数据
+      // 检查是否为立即购买模式
+      const buyNowItem = localStorage.getItem('buyNow');
+      const isBuyNowMode = !!buyNowItem;
+      console.log('[Checkout Debug] 订单提交模式:', isBuyNowMode ? '立即购买' : '购物车结算');
+      
+      let result;
+      
+      if (isBuyNowMode) {
+        // 立即购买模式 - 使用directPurchase API
+        try {
+          const item = JSON.parse(buyNowItem);
+          console.log('[Checkout Debug] 解析到立即购买商品:', item);
+          
+          if (!item || (!item.id && !item.goodsId && !item.productId)) {
+            throw new Error('立即购买商品数据不完整');
+          }
+          
+          // 处理规格信息，确保是JSON格式
+          let processedSpecs = {};
+          if (item.specs || item.spec) {
+            const specsStr = item.specs || item.spec || '';
+            try {
+              // 尝试解析，看是否已经是JSON
+              processedSpecs = JSON.parse(specsStr);
+            } catch (e) {
+              // 如果不是JSON，则尝试解析如"类型:孕中"这样的格式
+              if (specsStr.includes(':')) {
+                const pairs = specsStr.split(',');
+                for (const pair of pairs) {
+                  if (pair.includes(':')) {
+                    const [key, value] = pair.split(':', 2);
+                    processedSpecs[key.trim()] = value.trim();
+                  }
+                }
+              } else {
+                // 如果没有冒号，则整个字符串作为规格值
+                processedSpecs = { '规格': specsStr.trim() };
+              }
+            }
+          }
+          
+          const purchaseData = {
+            addressId: selectedAddress.value.addressId,
+            productId: item.id || item.goodsId || item.productId,
+            quantity: item.quantity || item.count || 1,
+            specs: JSON.stringify(processedSpecs), // 确保规格以JSON字符串形式发送
+            paymentMethod: selectedPayment.value ? selectedPayment.value.id : 'alipay',
+            couponId: selectedCoupon.value ? selectedCoupon.value.id : undefined,
+            remark: orderRemark.value || '',
+            shippingFee: shippingFee.value,
+            pointsUsed: usePointsForDiscount.value ? pointsToUse.value : 0
+          };
+          
+          console.log('[Checkout Debug] 直接购买请求参数:', purchaseData);
+          
+          // 调用直接购买API
+          result = await orderStore.directPurchase(purchaseData);
+          console.log('[Checkout Debug] 直接购买返回结果:', result);
+        } catch (parseError) {
+          console.error('[Checkout Debug] 解析立即购买数据失败:', parseError);
+          throw new Error('立即购买数据处理失败, 请返回商品详情页重新购买');
+        }
+      } else {
+        // 购物车结算模式 - 使用原有createOrder API
       const orderData = {
-        userId: userId,
         addressId: selectedAddress.value.addressId,
         cartIds: selectedItems.value.map(item => item.id || item.cartId || item.productId),
         paymentMethod: 'alipay', // 默认使用支付宝，用户可在支付页面更改
         couponId: selectedCoupon.value ? selectedCoupon.value.id : undefined,
         remark: orderRemark.value || '',
-        shippingFee: shippingFee.value, // 添加运费
-        pointsUsed: usePointsForDiscount.value ? pointsToUse.value : 0 // 添加积分抵扣
+          shippingFee: shippingFee.value,
+          pointsUsed: usePointsForDiscount.value ? pointsToUse.value : 0
       };
       
       // 增加详细日志，记录积分抵扣相关信息
@@ -1055,7 +1180,8 @@ export default function useCheckout() {
       });
       
       // 调用订单创建API
-      const result = await orderStore.createOrder(orderData);
+        result = await orderStore.createOrder(orderData);
+      }
       
       // 详细记录API返回的订单数据
       console.log('[Checkout Debug] 订单创建返回详细结果:', {
@@ -1079,17 +1205,20 @@ export default function useCheckout() {
         console.log('[Checkout Debug] 订单中的积分抵扣信息:', {
           pointsUsed: result.pointsUsed,
           pointsDiscount: result.pointsDiscount,
-          请求的积分抵扣: orderData.pointsUsed
+          请求的积分抵扣: usePointsForDiscount.value ? pointsToUse.value : 0
         });
         
         pointsStore.SET_USER_POINTS(userPoints.value - pointsToUse.value);
       }
       
-      // 清空购物车中已选中的商品
+      // 如果是普通购物车模式，清空购物车中已选中的商品
+      if (!isBuyNowMode) {
       await cartStore.removeSelectedItems();
+      }
       
       // 清除localStorage中的数据
       localStorage.removeItem('checkoutItems');
+      localStorage.removeItem('buyNow'); // 同时清除立即购买数据
       
       // 直接跳转到支付页面
       router.push(`/payment/${result.orderId || result.orderNumber}`);
@@ -1150,11 +1279,12 @@ export default function useCheckout() {
   onMounted(() => {
     console.log('[Checkout Debug] 组件挂载');
     
-    // 检查用户认证状态
-    const token = localStorage.getItem('token');
+    // 检查用户认证状态 - 使用auth.js的isAuthenticated函数
+    const authenticated = isAuthenticated();
+    console.log('[Checkout Debug] 用户认证状态检查结果:', authenticated ? '已认证' : '未认证');
     
-    if (!token) {
-      console.warn('[Checkout Debug] 未找到token，重定向到登录页面');
+    if (!authenticated) {
+      console.warn('[Checkout Debug] 用户未认证，重定向到登录页面');
       router.push({ 
         path: '/login', 
         query: { redirect: '/checkout' } 
@@ -1167,7 +1297,7 @@ export default function useCheckout() {
     const userId = userStore.id || authInfo?.userId || ensureUserId();
     
     console.log('[Checkout Debug] 挂载时的用户认证信息:', { 
-      hasToken: !!token, 
+      authenticated: authenticated,
       userStoreId: userStore.id,
       authInfoUserId: authInfo?.userId,
       ensuredUserId: userId
@@ -1241,7 +1371,8 @@ export default function useCheckout() {
       
       // 清除localStorage中的结算数据
       localStorage.removeItem('checkoutItems');
-      console.log('[Checkout Debug] 已清除localStorage中的checkoutItems数据');
+      localStorage.removeItem('buyNow'); // 同时清除立即购买数据
+      console.log('[Checkout Debug] 已清除localStorage中的结算相关数据');
       
       // 重新加载购物车数据
       console.log('[Checkout Debug] 开始重新加载购物车数据');

@@ -8,7 +8,9 @@ import {
   deleteOrder, 
   confirmReceive, 
   payOrder,
-  getOrderStats
+  getOrderStats,
+  directPurchase,
+  applyRefund
 } from '@/api/order';
 import { getStatusText as utilGetStatusText, getStatusType as utilGetStatusType } from '@/utils/orderStatusMapper';
 
@@ -25,7 +27,8 @@ export const useOrderStore = defineStore('order', {
       pendingPayment: 0,
       pendingShipment: 0,
       pendingReceive: 0,
-      completed: 0
+      completed: 0,
+      cancelled: 0
     },
     // 加载状态
     loading: false,
@@ -42,7 +45,8 @@ export const useOrderStore = defineStore('order', {
       orderNumber: '',
       startDate: null,
       endDate: null
-    }
+    },
+    error: null
   }),
 
   getters: {
@@ -54,6 +58,45 @@ export const useOrderStore = defineStore('order', {
     // 获取订单状态类型
     getOrderStatusType: () => (status) => {
       return utilGetStatusType(status);
+    },
+    
+    // 获取状态颜色（用于样式）
+    getStatusColor: () => (status) => {
+      // 根据状态返回对应的颜色
+      const colorMap = {
+        'CREATED': '#ff9800', // 橙色
+        'SHIPPING': '#2196f3', // 蓝色
+        'DELIVERED': '#4caf50', // 绿色
+        'EXCEPTION': '#f44336', // 红色
+        'pending_payment': '#ff9800', // 橙色 - 待付款
+        'pending_shipment': '#2196f3', // 蓝色 - 待发货
+        'pending_receive': '#9c27b0', // 紫色 - 待收货
+        'completed': '#4caf50', // 绿色 - 已完成
+        'cancelled': '#f44336', // 红色 - 已取消
+        '待付款': '#ff9800',
+        '待发货': '#2196f3',
+        '待收货': '#9c27b0',
+        '已完成': '#4caf50',
+        '已取消': '#f44336',
+        '退款中': '#e91e63'
+      };
+      return colorMap[status] || '#909399'; // 默认灰色
+    },
+    
+    // 获取物流状态文本
+    getLogisticsStatusText: () => (status) => {
+      // 物流状态映射
+      const statusMap = {
+        'CREATED': '已创建',
+        'SHIPPING': '运输中',
+        'DELIVERED': '已送达',
+        'EXCEPTION': '异常',
+        'created': '已创建',
+        'shipping': '运输中',
+        'delivered': '已送达',
+        'exception': '异常'
+      };
+      return statusMap[status] || status;
     },
     
     // 检查是否有待处理的订单
@@ -73,6 +116,10 @@ export const useOrderStore = defineStore('order', {
       return state.tempOrderItems.reduce((total, item) => {
         return total + (item.price * item.quantity);
       }, 0);
+    },
+
+    getOrderDetail: (state) => (id) => {
+      return state.currentOrder && state.currentOrder.id === id ? state.currentOrder : null;
     }
   },
 
@@ -220,6 +267,7 @@ export const useOrderStore = defineStore('order', {
     // 创建订单
     async createOrder(orderData) {
       this.loading = true;
+      this.error = null;
       
       try {
         // 准备订单数据，确保与后端API要求一致
@@ -264,13 +312,12 @@ export const useOrderStore = defineStore('order', {
           console.log('订单创建成功，返回数据:', res.data);
           return res.data;
         } else {
-          ElMessage.error(res.message || '订单创建失败');
-          return null;
+          throw new Error(res.message || '订单创建失败');
         }
       } catch (error) {
         console.error('创建订单失败:', error);
-        ElMessage.error('创建订单失败，请稍后重试');
-        return null;
+        this.error = error.message || '创建订单失败，请稍后重试';
+        throw error;
       } finally {
         this.loading = false;
       }
@@ -323,6 +370,26 @@ export const useOrderStore = defineStore('order', {
           if (this.currentOrder && this.currentOrder.id === orderId) {
             this.currentOrder.status = 'cancelled';
             this.currentOrder.statusText = this.getOrderStatusText('cancelled');
+          }
+          
+          // 直接更新订单统计数据中的已取消订单数量
+          if (this.orderStats) {
+            // 查找当前订单，确定它的原始状态
+            const origStatus = this.currentOrder?.status || null;
+            
+            // 增加已取消订单数量
+            this.orderStats.cancelled = (this.orderStats.cancelled || 0) + 1;
+            
+            // 根据原始状态减少相应的计数
+            if (origStatus === 'pending_payment') {
+              this.orderStats.pendingPayment = Math.max(0, (this.orderStats.pendingPayment || 0) - 1);
+            } else if (origStatus === 'pending_shipment') {
+              this.orderStats.pendingShipment = Math.max(0, (this.orderStats.pendingShipment || 0) - 1);
+            } else if (origStatus === 'pending_receive' || origStatus === 'shipped') {
+              this.orderStats.pendingReceive = Math.max(0, (this.orderStats.pendingReceive || 0) - 1);
+            }
+            
+            console.log('已更新订单统计数据，已取消订单数量:', this.orderStats.cancelled);
           }
           
           return true;
@@ -407,22 +474,37 @@ export const useOrderStore = defineStore('order', {
       this.statsLoading = true;
       
       try {
+        console.log('order.js: 开始从服务器获取订单统计数据');
         const res = await getOrderStats();
         
         if (res.code === 200) {
+          console.log('order.js: 成功获取订单统计数据:', res.data);
+          // 记录旧的统计值用于调试
+          const oldCancelled = this.orderStats?.cancelled || 0;
+          
           this.orderStats = {
             pendingPayment: res.data.pendingPayment || 0,
             pendingShipment: res.data.pendingShipment || 0,
             pendingReceive: res.data.pendingReceive || 0,
-            completed: res.data.completed || 0
+            completed: res.data.completed || 0,
+            cancelled: res.data.cancelled || 0
           };
+          
+          // 检查并输出已取消订单数量变化
+          if (oldCancelled !== this.orderStats.cancelled) {
+            console.log(`order.js: 已取消订单数量已更新: ${oldCancelled} -> ${this.orderStats.cancelled}`);
+          } else {
+            console.log(`order.js: 已取消订单数量未变化: ${this.orderStats.cancelled}`);
+          }
+          
           return this.orderStats;
         } else {
+          console.error('order.js: 获取订单统计失败:', res.message);
           ElMessage.error(res.message || '获取订单统计失败');
           return null;
         }
       } catch (error) {
-        console.error('获取订单统计失败:', error);
+        console.error('order.js: 获取订单统计异常:', error);
         ElMessage.error('获取订单统计失败，请稍后重试');
         return null;
       } finally {
@@ -443,6 +525,152 @@ export const useOrderStore = defineStore('order', {
         startDate: null,
         endDate: null
       };
+    },
+
+    /**
+     * 直接购买商品（不添加到购物车）
+     * @param {Object} purchaseData - 直接购买数据
+     * @returns {Promise} - 返回创建结果
+     */
+    async directPurchase(purchaseData) {
+      this.loading = true;
+      this.error = null;
+      try {
+        console.log('调用directPurchase API，参数:', purchaseData);
+        const response = await directPurchase(purchaseData);
+        if (response.code === 200 && response.data) {
+          return response.data;
+        } else {
+          throw new Error(response.message || '直接购买失败');
+        }
+      } catch (error) {
+        console.error('直接购买失败:', error);
+        this.error = error.message || '直接购买失败，请稍后重试';
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 获取订单的退款信息
+    async fetchRefundByOrderId(orderId) {
+      if (!orderId) {
+        ElMessage.error('订单ID不能为空');
+        return null;
+      }
+      
+      try {
+        console.log('开始获取订单退款信息，订单ID:', orderId);
+        
+        // 添加授权头，确保发送当前用户凭证
+        const headers = new Headers();
+        const token = localStorage.getItem('token');
+        if (token) {
+          headers.append('Authorization', `Bearer ${token}`);
+        }
+        
+        // 调用获取订单退款信息的API
+        const res = await fetch(`/api/refund/order/${orderId}?page=1&size=1`, {
+          headers: headers
+        });
+        
+        // 检查HTTP状态
+        if (!res.ok) {
+          // 如果是403错误，静默处理，不显示错误提示
+          if (res.status === 403) {
+            console.warn('无权限访问退款API，用户已登录但可能权限不足');
+            // 构建统一的错误对象
+            const error = {
+              status: 403,
+              message: '无权限访问退款API',
+              response: { status: 403 }
+            };
+            throw error;
+          }
+          
+          // 其他HTTP错误
+          console.error(`获取订单退款信息失败: HTTP ${res.status}`);
+          throw new Error(`获取退款信息失败: HTTP ${res.status}`);
+        }
+        
+        // 检查响应是否为空
+        const text = await res.text();
+        if (!text || text.trim() === '') {
+          console.warn('退款API返回空响应');
+          return { code: 204, message: '退款API返回空响应', data: null };
+        }
+        
+        // 解析JSON
+        try {
+          const data = JSON.parse(text);
+          return data;
+        } catch (jsonError) {
+          console.error('解析退款信息JSON失败:', jsonError);
+          throw new Error('解析退款信息失败');
+        }
+      } catch (error) {
+        console.error('获取订单退款信息失败:', error);
+        
+        // 统一错误对象结构
+        if (error && error.status === 403) {
+          // 已经是统一结构，直接抛出
+          throw error;
+        } else if (error.response && error.response.status === 403) {
+          // 已经是统一结构，直接抛出
+          throw error;
+        } else {
+          // 其他错误，包装为统一结构
+          throw {
+            status: error.status || 500,
+            message: error.message || '获取订单退款信息失败',
+            response: error.response || { status: error.status || 500 }
+          };
+        }
+      }
+    },
+    
+    // 取消退款申请
+    async cancelRefund(refundId, reason) {
+      if (!refundId) {
+        ElMessage.error('退款ID不能为空');
+        return null;
+      }
+      
+      try {
+        // 调用取消退款申请的API
+        const res = await fetch(`/api/refund/cancel/${refundId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            userId: localStorage.getItem('userId') || '',
+            reason: reason || '用户取消申请'
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (data.code === 200) {
+          return {
+            code: 200,
+            data: true
+          };
+        } else {
+          return {
+            code: data.code || 500,
+            message: data.message || '取消退款申请失败',
+            data: null
+          };
+        }
+      } catch (error) {
+        console.error('取消退款申请失败:', error);
+        return {
+          code: 500,
+          message: '取消退款申请失败，请稍后重试',
+          data: null
+        };
+      }
     }
   }
 }); 

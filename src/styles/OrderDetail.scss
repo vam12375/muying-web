@@ -326,7 +326,9 @@
       margin-bottom: 15px;
       
       .refresh-button {
-        font-size: 13px;
+        margin-left: 10px;
+        padding: 5px 10px;
+        font-size: 12px;
       }
     }
     
@@ -421,5 +423,58 @@
       background-color: #f8f8f8;
       border-radius: 4px;
     }
+  }
+}
+
+// 退款相关样式
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+
+.refund-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+// 上传凭证样式优化
+.el-upload--picture-card {
+  width: 100px;
+  height: 100px;
+  line-height: 100px;
+}
+
+.el-upload-list--picture-card .el-upload-list__item {
+  width: 100px;
+  height: 100px;
+}
+
+// 退款状态颜色
+.refund-status {
+  &-pending {
+    color: #E6A23C;
+  }
+  
+  &-approved {
+    color: #409EFF;
+  }
+  
+  &-rejected {
+    color: #F56C6C;
+  }
+  
+  &-processing {
+    color: #909399;
+  }
+  
+  &-completed {
+    color: #67C23A;
+  }
+  
+  &-failed {
+    color: #F56C6C;
   }
 } 
