@@ -19,7 +19,8 @@ export const getStatusText = (status) => {
       3: '已完成',
       4: '已取消',
       5: '退款中',
-      6: '已关闭'
+      6: '已退款',
+      7: '已关闭'
     };
     return statusMap[statusNumber] || '未知状态';
   }
@@ -43,6 +44,8 @@ export const getStatusText = (status) => {
     'CANCELLED': '已取消',
     'refunding': '退款中',
     'REFUNDING': '退款中',
+    'refunded': '已退款',
+    'REFUNDED': '已退款',
     'closed': '已关闭',
     'CLOSED': '已关闭',
     // 直接支持中文状态 - 前后端保持一致
@@ -53,6 +56,7 @@ export const getStatusText = (status) => {
     '已完成': '已完成',
     '已取消': '已取消',
     '退款中': '退款中',
+    '已退款': '已退款',
     '已关闭': '已关闭'
   };
   return statusMap[status] || '未知状态';
@@ -69,6 +73,7 @@ export const getStatusType = (status) => {
     '已完成': 'info',
     '已取消': 'danger',
     '退款中': 'danger',
+    '已退款': 'warning',
     '已关闭': 'info'
   };
   
@@ -119,14 +124,16 @@ export const getStatusCode = (status) => {
     '已完成': 3,
     '已取消': 4,
     '退款中': 5,
-    '已关闭': 6,
+    '已退款': 6,
+    '已关闭': 7,
     'unpaid': 0,
     'unshipped': 1,
     'shipped': 2,
     'completed': 3,
     'cancelled': 4,
     'refunding': 5,
-    'closed': 6,
+    'refunded': 6,
+    'closed': 7,
     'pending_payment': 0,
     'pending_shipment': 1,
     'pending_receive': 2

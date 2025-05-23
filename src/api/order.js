@@ -131,21 +131,21 @@ export function applyRefund(orderId, data) {
   // 获取当前登录用户ID
   const userId = localStorage.getItem('userId');
   
-  // 创建请求参数对象
-  const params = {
+  // 创建请求体对象
+  const requestData = {
     orderId: orderId,
     userId: userId,
     amount: data.amount,
     reason: data.reason,
     reasonDetail: data.reasonDetail || '',
-    // 确保evidenceImages是有效的JSON字符串格式，对于空数组使用'[]'
-    evidenceImages: data.evidenceImages ? JSON.stringify(data.evidenceImages) : '[]'
+    // 对于evidenceImages，如果是数组，直接使用数组；如果是字符串，尝试解析；如果为空，使用空数组
+    evidenceImages: data.evidenceImages || []
   };
   
   return request({
-    url: '/api/refund/apply',
+    url: '/refund/apply',
     method: 'post',
-    params  // 使用params发送查询参数
+    data: requestData  // 使用data发送请求体，而非params查询参数
   });
 }
 
