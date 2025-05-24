@@ -246,7 +246,7 @@ yarn dev
 pnpm dev
 ```
 
-应用将在 http://localhost:3000 运行（或其他可用端口），并支持热模块替换(HMR)。
+应用将在 http://localhost:5173 运行（或其他可用端口），并支持热模块替换(HMR)。
 
 #### 4. 构建生产版本
 
