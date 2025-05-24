@@ -149,6 +149,28 @@
           </div>
         </template>
         
+        <div v-else-if="isLoggedIn && displayRecommendations.length === 0" class="recommended-section__empty">
+          <div class="empty-recommendations">
+            <div class="empty-recommendations__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48">
+                <path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm0 3a2.5 2.5 0 0 1 2.5 2.5c0 .894-.466 1.606-1.025 2.148-.543.526-1.275.91-1.975 1.202l-.362.135-.363.146V14h2v2H9v-3.46l.6-.3c.626-.313 1.099-.633 1.428-.957.316-.306.6-.79.6-1.283A1.5 1.5 0 0 0 10.5 8.5h-2V7h2A2.5 2.5 0 0 1 12 7z" fill="#909399"/>
+              </svg>
+            </div>
+            <h3 class="empty-recommendations__title">暂无个性化推荐</h3>
+            <p class="empty-recommendations__description">
+              我们正在了解您的喜好，浏览更多商品或完成购买将帮助我们提供更精准的推荐
+            </p>
+            <div class="empty-recommendations__actions">
+              <MuButton 
+                type="primary" 
+                @click="navigateTo('/products')"
+              >
+                浏览商品
+              </MuButton>
+            </div>
+          </div>
+        </div>
+        
         <div v-else class="recommended-section__empty">
           <p>没有符合当前筛选条件的推荐商品</p>
           <MuButton 
@@ -306,7 +328,37 @@ export default {
   computed: {
     displayRecommendations() {
       // 使用传入的recommendations或默认的demo数据
-      return this.recommendations.length > 0 ? this.recommendations : this.demoRecommendations;
+      if (this.recommendations.length > 0) {
+        // 验证和修复API返回的推荐数据格式
+        return this.recommendations.map(product => {
+          let formattedProduct = { ...product };
+          
+          // 确保存在matchPercent字段
+          if (typeof formattedProduct.matchPercent === 'undefined') {
+            formattedProduct.matchPercent = Math.floor(Math.random() * 15) + 85; // 85-100随机值
+          }
+          
+          // 确保标签格式正确
+          if (!Array.isArray(formattedProduct.tags)) {
+            formattedProduct.tags = [];
+          } else if (formattedProduct.tags.length > 0 && typeof formattedProduct.tags[0] !== 'object') {
+            // 如果标签是字符串数组，转换为对象数组
+            formattedProduct.tags = formattedProduct.tags.map(tag => ({
+              id: typeof tag === 'string' ? tag : `tag-${Math.random()}`,
+              name: typeof tag === 'string' ? tag : '标签',
+              type: 'default'
+            }));
+          }
+          
+          // 为登录用户添加"为您推荐"标签，如果没有其他标签
+          if (this.isLoggedIn && (!formattedProduct.tags || formattedProduct.tags.length === 0)) {
+            formattedProduct.tags = [{ id: 'for_you', name: '为您推荐', type: 'primary' }];
+          }
+          
+          return formattedProduct;
+        });
+      }
+      return this.demoRecommendations;
     },
     filteredRecommendations() {
       if (this.selectedPreferences.length === 0) {
@@ -754,6 +806,47 @@ export default {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+// 空推荐样式
+.empty-recommendations {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 450px;
+  margin: 0 auto;
+  
+  &__icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 80px;
+    height: 80px;
+    background-color: $color-grey-100;
+    border-radius: 50%;
+    margin-bottom: $spacing-6;
+  }
+  
+  &__title {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    color: $color-grey-900;
+    margin-bottom: $spacing-3;
+    text-align: center;
+  }
+  
+  &__description {
+    font-size: $font-size-base;
+    color: $color-grey-600;
+    text-align: center;
+    margin-bottom: $spacing-6;
+    line-height: 1.6;
+  }
+  
+  &__actions {
+    display: flex;
+    gap: $spacing-4;
   }
 }
 </style> 

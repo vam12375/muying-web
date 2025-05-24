@@ -76,13 +76,10 @@ export function updatePassword(data) {
 
 /**
  * 上传用户头像
- * @param {File} file - 头像文件
+ * @param {FormData} formData - 包含头像文件的FormData对象
  * @returns {Promise}
  */
-export function uploadAvatar(file) {
-  const formData = new FormData();
-  formData.append('avatar', file);
-  
+export function uploadAvatar(formData) {
   return request({
     url: '/user/avatar',
     method: 'post',

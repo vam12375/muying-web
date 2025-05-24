@@ -12,7 +12,7 @@
       <div class="user-info-wrapper">
         <div class="avatar-section">
           <div class="avatar-container">
-            <img :src="userStore.avatar || defaultAvatar" :alt="userStore.username" class="user-avatar" />
+            <img :src="currentAvatarUrl" :alt="userStore.username" class="user-avatar" />
             <div class="avatar-upload">
               <el-upload
                 class="avatar-uploader"
@@ -168,7 +168,7 @@ export default {
 </script>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { uploadAvatar as uploadUserAvatar, updatePassword as changeUserPassword } from '@/api/user'
@@ -185,6 +185,57 @@ const passwordFormRef = ref(null)
 
 // 默认头像
 const defaultAvatar = defaultAvatarImg
+
+// 当前显示的头像URL
+const currentAvatarUrl = ref(userStore.avatar || defaultAvatar)
+
+// 验证并修复头像URL
+const validateAndFixAvatarUrl = (url) => {
+  console.log('UserInfo: 验证并修复头像URL:', url)
+  
+  // 如果URL为空，返回默认头像
+  if (!url) {
+    console.log('UserInfo: URL为空，返回默认头像')
+    return defaultAvatar
+  }
+  
+  // 使用store中的智能修复方法
+  const fixedUrl = userStore.fixAvatarUrl(url)
+  console.log('UserInfo: 修复后的URL:', fixedUrl)
+  
+  // 如果修复后仍然为空，返回默认头像
+  if (!fixedUrl) {
+    console.log('UserInfo: 修复后URL仍为空，返回默认头像')
+    return defaultAvatar
+  }
+  
+  return fixedUrl
+}
+
+// 监听userStore中avatar的变化
+watch(() => userStore.avatar, (newAvatarUrl) => {
+  console.log('UserInfo: 检测到userStore.avatar变化:', newAvatarUrl)
+  
+  // 验证并修复URL
+  const validatedUrl = validateAndFixAvatarUrl(newAvatarUrl)
+  
+  if (validatedUrl !== defaultAvatar) {
+    // 添加时间戳防止缓存
+    const timestampedUrl = validatedUrl + (validatedUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime()
+    currentAvatarUrl.value = timestampedUrl
+    console.log('UserInfo: 更新当前显示头像URL:', timestampedUrl)
+  } else {
+    currentAvatarUrl.value = defaultAvatar
+    console.log('UserInfo: 使用默认头像')
+  }
+})
+
+// 初始化时验证头像URL
+const initializeAvatarUrl = () => {
+  console.log('UserInfo: 初始化头像URL, userStore.avatar:', userStore.avatar)
+  currentAvatarUrl.value = validateAndFixAvatarUrl(userStore.avatar)
+  console.log('UserInfo: 初始化完成，当前头像URL:', currentAvatarUrl.value)
+}
 
 // 编辑表单
 const editForm = ref({
@@ -272,11 +323,38 @@ const formatPhone = (phone) => {
 const loadUserInfo = async () => {
   loading.value = true
   try {
-    if (!userStore.id && userStore.token) {
+    console.log('UserInfo.loadUserInfo: 开始加载用户信息')
+    
+    // 首先检查用户认证状态，这会自动从localStorage恢复用户信息
+    const isAuthenticated = await userStore.checkAuth()
+    console.log('UserInfo.loadUserInfo: 认证检查结果:', isAuthenticated)
+    
+    if (!isAuthenticated) {
+      console.warn('UserInfo.loadUserInfo: 用户未认证')
+      ElMessage.error('用户认证失败，请重新登录')
+      return
+    }
+    
+    // 如果认证成功但还没有详细信息，尝试获取
+    if (isAuthenticated && (!userStore.id || !userStore.nickname)) {
+      console.log('UserInfo.loadUserInfo: 认证成功但缺少详细信息，尝试获取')
       await userStore.fetchUserInfo()
     }
+    
+    console.log('UserInfo.loadUserInfo: 当前用户信息状态:', {
+      id: userStore.id,
+      username: userStore.username,
+      nickname: userStore.nickname,
+      email: userStore.email,
+      phone: userStore.phone,
+      gender: userStore.gender,
+      birthday: userStore.birthday,
+      createTime: userStore.createTime,
+      avatar: !!userStore.avatar
+    })
+    
   } catch (error) {
-    console.error('加载用户信息失败:', error)
+    console.error('UserInfo.loadUserInfo: 加载用户信息失败:', error)
     ElMessage.error('加载用户信息失败，请稍后重试')
   } finally {
     loading.value = false
@@ -394,26 +472,53 @@ const handleAvatarUpload = async (options) => {
   }
   
   try {
-    const formData = new FormData()
-    formData.append('file', file)
+    console.log('UserInfo: 开始上传头像文件:', file.name)
     
-    const res = await uploadUserAvatar(formData)
+    // 使用store中的上传方法
+    const result = await userStore.uploadUserAvatar(file)
+    console.log('UserInfo: 头像上传结果:', result)
     
-    if (res.code === 200 && res.data && res.data.avatarUrl) {
-      // 更新store中的头像
-      userStore.avatar = res.data.avatarUrl
-      ElMessage.success('头像上传成功')
+    if (result && result.success) {
+      console.log('UserInfo: 头像上传成功，新头像URL:', result.avatarUrl)
+      
+      // 验证并修复返回的头像URL
+      const validatedUrl = validateAndFixAvatarUrl(result.avatarUrl)
+      console.log('UserInfo: 验证后的头像URL:', validatedUrl)
+      
+      if (validatedUrl !== defaultAvatar) {
+        // 添加时间戳防止浏览器缓存，立即显示新头像
+        const timestampedUrl = validatedUrl + (validatedUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime()
+        currentAvatarUrl.value = timestampedUrl
+        console.log('UserInfo: 立即更新显示的头像URL:', timestampedUrl)
+        
+        // 触发页面上所有头像元素的刷新
+        setTimeout(() => {
+          const avatarImages = document.querySelectorAll('.user-avatar, .navbar-avatar img, .header-avatar img')
+          console.log('UserInfo: 刷新页面头像元素，数量:', avatarImages.length)
+          avatarImages.forEach(img => {
+            img.src = timestampedUrl
+          })
+        }, 100)
+        
+        ElMessage.success('头像上传成功')
+      } else {
+        console.error('UserInfo: 头像URL验证失败')
+        ElMessage.error('头像上传成功但URL无效，请刷新页面后重试')
+      }
     } else {
-      ElMessage.error(res.message || '头像上传失败')
+      const errorMsg = result?.error || '头像上传失败'
+      console.error('UserInfo: 头像上传失败:', errorMsg)
+      ElMessage.error(errorMsg)
     }
   } catch (error) {
-    console.error('头像上传失败:', error)
-    ElMessage.error('头像上传失败，请稍后重试')
+    console.error('UserInfo: 头像上传异常:', error)
+    ElMessage.error('头像上传失败: ' + (error.message || '网络异常，请稍后重试'))
   }
 }
 
 onMounted(() => {
   loadUserInfo()
+  initializeAvatarUrl()
 })
 </script>
 

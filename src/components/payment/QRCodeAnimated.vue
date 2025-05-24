@@ -16,7 +16,7 @@
     </div>
     
     <!-- 二维码内容 -->
-    <div v-else class="qrcode-wrapper" :class="{ 'success': success }">
+    <div v-else class="qrcode-wrapper" :class="['payment-' + paymentType, { 'success': success }]">
       <div class="qrcode-image-wrapper">
         <!-- 品牌图标 -->
         <div class="brand-icon-holder" :class="paymentType">
@@ -104,8 +104,19 @@ const handleQrcodeLoaded = () => {
   qrcodeLoaded.value = true;
   emit('load');
   
-  // 加载完成动画
+  // 加载完成后给随机生成的二维码添加特殊效果
+  if (props.paymentType === 'wechat') {
+    setTimeout(() => {
+      const qrcodeImage = document.querySelector('.qrcode-image');
+      if (qrcodeImage) {
+        // 给随机生成的微信二维码添加微信绿色滤镜效果和阴影
+        qrcodeImage.style.filter = 'drop-shadow(0 4px 8px rgba(7, 193, 96, 0.3))';
+        animateQrcodeAppearance(); // 二维码特殊动画效果
+      }
+    }, 100);
+  } else {
   animateQrcodeAppearance();
+  }
 };
 
 // 根据支付类型返回品牌图标
@@ -394,7 +405,17 @@ onMounted(() => {
         height: 100%;
         object-fit: contain;
         border-radius: 8px;
-        transition: filter 0.5s ease;
+        transition: filter 0.5s ease, transform 0.5s ease;
+        
+        &:hover {
+          transform: scale(1.02);
+        }
+        
+        // 微信支付二维码特殊样式
+        .payment-wechat & {
+          box-shadow: 0 4px 12px rgba(7, 193, 96, 0.2);
+          background: linear-gradient(135deg, rgba(7, 193, 96, 0.05), rgba(255, 255, 255, 0));
+        }
       }
       
       // 扫描区域指示器

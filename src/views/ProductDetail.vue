@@ -241,21 +241,50 @@
       <!-- 用户评价区域 -->
       <div class="product-section" id="product-comments" ref="commentsSection">
         <div class="section-header">
-          <h2 class="section-title">用户评价 <span class="count">({{ product.review_count || product.reviewCount || 0 }})</span></h2>
+          <h2 class="section-title">用户评价 <span class="count">({{ ratingStats?.totalComments || product.review_count || product.reviewCount || 0 }})</span></h2>
           <div class="section-more" @click="activeTab = 'comments'">查看全部</div>
         </div>
         
-        <!-- 评价统计 -->
-        <div class="comments-stats">
+        <!-- 评价统计加载状态 -->
+        <div class="comments-stats-loading" v-if="commentsStatsLoading">
+          <el-skeleton animated :rows="3" />
+          <el-skeleton animated style="margin-top: 20px" :rows="5" />
+        </div>
+        
+        <!-- 评价统计 - 现代化版本 -->
+        <div class="comments-stats" v-else>
           <div class="rating-overview">
-            <div class="rating-score">
-              <span class="score">{{ (product.rating || 5).toFixed(1) }}</span>
-              <span class="max">/ 5</span>
+            <div class="rating-score-circle">
+              <div class="circle-progress">
+                <div class="circle-inner">
+                  <div class="score-number">{{ (ratingStats?.averageRating || product.rating || 5).toFixed(1) }}</div>
+                  <div class="score-max">/ 5</div>
+                </div>
+              </div>
+              <svg class="circle-bg">
+                <circle cx="50" cy="50" r="45" />
+              </svg>
+              <svg class="circle-progress-bar">
+                <circle 
+                  cx="50" 
+                  cy="50" 
+                  r="45" 
+                  :stroke-dasharray="`${getCircleProgressValue()} 283`" 
+                />
+              </svg>
             </div>
-            <div class="rating-stars">
-              <el-rate v-model="product.rating" disabled show-score></el-rate>
+            <div class="rating-text">
+              <div class="rating-desc">
+                {{ getRatingText(ratingStats?.averageRating || product.rating || 5) }}
+              </div>
+              <div class="rating-stars">
+                <el-rate v-model="ratingStarsValue" disabled show-score></el-rate>
+              </div>
+              <div class="rating-count">
+                <span class="highlight">{{ ratingStats?.totalComments || product.review_count || product.reviewCount || 0 }}</span> 条评价，好评率 
+                <span class="highlight">{{ calculateGoodRating() }}%</span>
+              </div>
             </div>
-            <div class="rating-count">{{ product.review_count || product.reviewCount || 0 }}条评价</div>
           </div>
           
           <div class="rating-distribution" v-if="ratingStats">
@@ -266,145 +295,337 @@
                   class="rating-bar" 
                   :style="{
                     width: `${calculateRatingPercentage(i)}%`,
-                    backgroundColor: i >= 4 ? '#67c23a' : i === 3 ? '#e6a23c' : '#f56c6c'
+                    background: i >= 4 ? 'linear-gradient(to right, #67c23a, #95d475)' : 
+                              i === 3 ? 'linear-gradient(to right, #e6a23c, #f3d19e)' : 
+                              'linear-gradient(to right, #f56c6c, #fab6b6)'
                   }"
-                ></div>
+                >
+                  <span class="bar-percentage" v-if="calculateRatingPercentage(i) > 5">{{ calculateRatingPercentage(i) }}%</span>
               </div>
-              <div class="rating-percentage">{{ calculateRatingPercentage(i) }}%</div>
+                <span class="bar-percentage-outside" v-if="calculateRatingPercentage(i) <= 5">{{ calculateRatingPercentage(i) }}%</span>
+              </div>
             </div>
           </div>
+          <div v-else class="ratings-loading">
+            <el-skeleton animated :rows="5" />
+          </div>
           
+          <!-- 标签云加载状态 -->
           <div class="rating-tags" v-if="commentTags && commentTags.length > 0">
-            <div 
-              v-for="(tag, index) in commentTags" 
-              :key="index" 
-              class="rating-tag"
-              :class="{ 'active': selectedCommentTag === tag }"
-              @click="filterCommentsByTag(tag)"
-            >
-              {{ tag }}
+            <div class="tags-title">热门标签</div>
+            <div class="tags-cloud">
+              <div 
+                v-for="(tag, index) in commentTags" 
+                :key="index" 
+                class="rating-tag"
+                :class="{ 'active': selectedCommentTag === tag }"
+                @click="filterCommentsByTag(tag)"
+              >
+                <el-tag 
+                  :type="getTagType(index)" 
+                  effect="light" 
+                  size="small" 
+                  class="tag-pill"
+                >
+                  {{ tag }}
+                  <template v-if="tagCounts && tagCounts[tag]">
+                    ({{ tagCounts[tag] }})
+                  </template>
+                </el-tag>
+              </div>
             </div>
+          </div>
+          <div class="rating-tags-empty" v-else-if="!commentsStatsLoading">
+            <el-empty description="暂无评价标签" :image-size="60">
+              <template #description>
+                <p>该商品暂无评价标签</p>
+              </template>
+            </el-empty>
           </div>
         </div>
         
+        <!-- 评价内容预览 - 卡片式设计 -->
         <div class="comments-preview">
-          <div v-if="comments.length === 0">
-            <el-empty description="暂无评价" />
+          <div v-if="comments.length === 0" class="no-comments">
+            <el-empty description="暂无评价">
+              <template #image>
+                <img src="@/assets/images/no-review.svg" alt="暂无评价" class="no-comments-image" />
+              </template>
+              <template #description>
+                <p>暂时还没有用户评价，成为第一个评价者吧</p>
+              </template>
+            </el-empty>
           </div>
           <div v-else class="comment-list">
-            <div v-for="(comment, index) in comments.slice(0, 3)" :key="index" class="comment-item">
-              <div class="comment-user">
-                <el-avatar :src="comment.userAvatar || userAvatar"></el-avatar>
-                <span>{{ comment.isAnonymous ? '匿名用户' : (comment.userNickname || comment.userName || '用户') }}</span>
-                <el-rate v-model="comment.rating" disabled></el-rate>
+            <transition-group name="comment-fade">
+              <el-card 
+                v-for="(comment, index) in comments.slice(0, 3)" 
+                :key="index" 
+                class="comment-card"
+                shadow="hover"
+              >
+                <div class="comment-header">
+                  <div class="comment-user-info">
+                    <el-avatar :src="comment.userAvatar || userAvatar" :size="40"></el-avatar>
+                    <div class="user-details">
+                      <div class="user-name">{{ comment.isAnonymous ? '匿名用户' : (comment.userNickname || comment.userName || '用户') }}</div>
+                      <div class="comment-date">{{ formatCommentTime(comment.createTime) }}</div>
               </div>
+                  </div>
+                  <div class="comment-rating">
+                    <el-rate v-model="comment.rating" disabled size="small"></el-rate>
+                    <div class="rating-text">{{ getRatingText(comment.rating) }}</div>
+                  </div>
+                </div>
+                
+                <div class="comment-body">
               <div class="comment-content">{{ comment.content }}</div>
+                  
               <div class="comment-images" v-if="comment.images?.length">
+                    <div class="images-grid">
                 <el-image
-                  v-for="img in comment.images"
-                  :key="img"
+                        v-for="(img, imgIndex) in comment.images"
+                        :key="imgIndex"
                   :src="img"
                   :preview-src-list="comment.images"
                   fit="cover"
-                  class="comment-image">
+                        class="comment-image"
+                        :initial-index="imgIndex"
+                      >
+                        <template #error>
+                          <div class="image-error">
+                            <el-icon><Picture /></el-icon>
+                          </div>
+                        </template>
+                        <template #placeholder>
+                          <div class="image-placeholder">
+                            <el-icon><Loading /></el-icon>
+                          </div>
+                        </template>
                 </el-image>
               </div>
+                  </div>
+                  
               <div class="comment-tags" v-if="comment.tags && comment.tags.length">
                 <div 
                   v-for="(tag, tIndex) in comment.tags" 
                   :key="tIndex" 
                   class="tag-item"
-                >{{ tag }}</div>
+                    >
+                      <el-tag size="small" effect="plain">{{ tag }}</el-tag>
               </div>
+                  </div>
+                  
               <div class="comment-product-info" v-if="comment.productSpecs">
-                <span class="specs-text">{{ comment.productSpecs }}</span>
+                    <el-tag type="info" size="small" effect="plain" class="specs-tag">
+                      <el-icon><Goods /></el-icon>
+                      <span>{{ comment.productSpecs }}</span>
+                    </el-tag>
               </div>
+                </div>
+                
               <div class="comment-footer">
-                <div class="comment-time">{{ formatCommentTime(comment.createTime) }}</div>
                 <div class="comment-actions">
-                  <el-button type="text" size="small" class="action-btn">
+                    <el-button type="primary" text size="small" class="action-btn">
                     <el-icon><Pointer /></el-icon> 有用({{ comment.usefulCount || 0 }})
                   </el-button>
-                  <el-button type="text" size="small" class="action-btn">
+                    <el-button type="primary" text size="small" class="action-btn">
                     <el-icon><ChatLineSquare /></el-icon> 回复
                   </el-button>
+                    <el-button type="primary" text size="small" class="action-btn">
+                      <el-icon><Share /></el-icon> 分享
+                    </el-button>
                 </div>
               </div>
+                
+                <!-- 评论回复区域 -->
+                <div class="comment-replies" v-if="comment.replies && comment.replies.length">
+                  <div class="reply-title">
+                    <el-icon><ChatDotRound /></el-icon>
+                    <span>回复 ({{ comment.replies.length }})</span>
             </div>
+                  <div 
+                    v-for="(reply, rIndex) in comment.replies" 
+                    :key="rIndex"
+                    class="reply-item"
+                  >
+                    <div class="reply-user">{{ reply.userNickname || reply.userName || '用户' }}:</div>
+                    <div class="reply-content">{{ reply.content }}</div>
+                    <div class="reply-time">{{ formatCommentTime(reply.createTime) }}</div>
+                  </div>
+                </div>
+              </el-card>
+            </transition-group>
             
             <div class="view-more-comments" v-if="comments.length > 3">
               <el-button type="primary" plain @click="showAllComments">
                 查看更多评价
-                <el-icon><ArrowDown /></el-icon>
+                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
               </el-button>
             </div>
           </div>
         </div>
         
-        <!-- 评价分页对话框 -->
+        <!-- 评价分页对话框 - 优化设计 -->
         <el-dialog
           v-model="commentDialogVisible"
           title="全部评价"
           width="800px"
+          custom-class="comments-dialog"
+          destroy-on-close
         >
           <div class="comments-filter">
-            <div class="filter-item" :class="{ 'active': commentFilter === 'all' }" @click="setCommentFilter('all')">全部</div>
-            <div class="filter-item" :class="{ 'active': commentFilter === 'positive' }" @click="setCommentFilter('positive')">好评</div>
-            <div class="filter-item" :class="{ 'active': commentFilter === 'neutral' }" @click="setCommentFilter('neutral')">中评</div>
-            <div class="filter-item" :class="{ 'active': commentFilter === 'negative' }" @click="setCommentFilter('negative')">差评</div>
-            <div class="filter-item" :class="{ 'active': commentFilter === 'withImage' }" @click="setCommentFilter('withImage')">有图</div>
+            <div class="filter-buttons">
+              <el-button 
+                :type="commentFilter === 'all' ? 'primary' : ''" 
+                :plain="commentFilter !== 'all'"
+                class="filter-btn" 
+                @click="setCommentFilter('all')"
+                round
+              >全部</el-button>
+              <el-button 
+                :type="commentFilter === 'positive' ? 'success' : ''" 
+                :plain="commentFilter !== 'positive'"
+                class="filter-btn" 
+                @click="setCommentFilter('positive')"
+                round
+              >好评</el-button>
+              <el-button 
+                :type="commentFilter === 'neutral' ? 'warning' : ''" 
+                :plain="commentFilter !== 'neutral'"
+                class="filter-btn" 
+                @click="setCommentFilter('neutral')"
+                round
+              >中评</el-button>
+              <el-button 
+                :type="commentFilter === 'negative' ? 'danger' : ''" 
+                :plain="commentFilter !== 'negative'"
+                class="filter-btn" 
+                @click="setCommentFilter('negative')"
+                round
+              >差评</el-button>
+              <el-button 
+                :type="commentFilter === 'withImage' ? 'info' : ''" 
+                :plain="commentFilter !== 'withImage'"
+                class="filter-btn" 
+                @click="setCommentFilter('withImage')"
+                round
+              ><el-icon><Picture /></el-icon> 有图</el-button>
+            </div>
           </div>
           
           <div class="dialog-comment-list">
-            <div v-for="(comment, index) in filteredComments" :key="index" class="comment-item">
-              <div class="comment-user">
-                <el-avatar :src="comment.userAvatar || userAvatar"></el-avatar>
-                <span>{{ comment.isAnonymous ? '匿名用户' : (comment.userNickname || comment.userName || '用户') }}</span>
-                <el-rate v-model="comment.rating" disabled></el-rate>
+            <transition-group name="comment-fade">
+              <el-card 
+                v-for="(comment, index) in filteredComments" 
+                :key="index" 
+                class="comment-card"
+                shadow="hover"
+              >
+                <div class="comment-header">
+                  <div class="comment-user-info">
+                    <el-avatar :src="comment.userAvatar || userAvatar" :size="40"></el-avatar>
+                    <div class="user-details">
+                      <div class="user-name">{{ comment.isAnonymous ? '匿名用户' : (comment.userNickname || comment.userName || '用户') }}</div>
+                      <div class="comment-date">{{ formatCommentTime(comment.createTime) }}</div>
               </div>
+                  </div>
+                  <div class="comment-rating">
+                    <el-rate v-model="comment.rating" disabled size="small"></el-rate>
+                    <div class="rating-text">{{ getRatingText(comment.rating) }}</div>
+                  </div>
+                </div>
+                
+                <div class="comment-body">
               <div class="comment-content">{{ comment.content }}</div>
+                  
               <div class="comment-images" v-if="comment.images?.length">
+                    <div class="images-grid">
                 <el-image
-                  v-for="img in comment.images"
-                  :key="img"
+                        v-for="(img, imgIndex) in comment.images"
+                        :key="imgIndex"
                   :src="img"
                   :preview-src-list="comment.images"
                   fit="cover"
-                  class="comment-image">
+                        class="comment-image"
+                        :initial-index="imgIndex"
+                      >
+                        <template #error>
+                          <div class="image-error">
+                            <el-icon><Picture /></el-icon>
+                          </div>
+                        </template>
+                        <template #placeholder>
+                          <div class="image-placeholder">
+                            <el-icon><Loading /></el-icon>
+                          </div>
+                        </template>
                 </el-image>
               </div>
+                  </div>
+                  
               <div class="comment-tags" v-if="comment.tags && comment.tags.length">
                 <div 
                   v-for="(tag, tIndex) in comment.tags" 
                   :key="tIndex" 
                   class="tag-item"
-                >{{ tag }}</div>
+                    >
+                      <el-tag size="small" effect="plain">{{ tag }}</el-tag>
               </div>
+                  </div>
+                  
               <div class="comment-product-info" v-if="comment.productSpecs">
-                <span class="specs-text">{{ comment.productSpecs }}</span>
+                    <el-tag type="info" size="small" effect="plain" class="specs-tag">
+                      <el-icon><Goods /></el-icon>
+                      <span>{{ comment.productSpecs }}</span>
+                    </el-tag>
               </div>
+                </div>
+                
               <div class="comment-footer">
-                <div class="comment-time">{{ formatCommentTime(comment.createTime) }}</div>
                 <div class="comment-actions">
-                  <el-button type="text" size="small" class="action-btn">
+                    <el-button type="primary" text size="small" class="action-btn">
                     <el-icon><Pointer /></el-icon> 有用({{ comment.usefulCount || 0 }})
                   </el-button>
-                  <el-button type="text" size="small" class="action-btn">
+                    <el-button type="primary" text size="small" class="action-btn">
                     <el-icon><ChatLineSquare /></el-icon> 回复
                   </el-button>
+                    <el-button type="primary" text size="small" class="action-btn">
+                      <el-icon><Share /></el-icon> 分享
+                    </el-button>
                 </div>
               </div>
+                
+                <!-- 评论回复区域 -->
+                <div class="comment-replies" v-if="comment.replies && comment.replies.length">
+                  <div class="reply-title">
+                    <el-icon><ChatDotRound /></el-icon>
+                    <span>回复 ({{ comment.replies.length }})</span>
             </div>
+                  <div 
+                    v-for="(reply, rIndex) in comment.replies" 
+                    :key="rIndex"
+                    class="reply-item"
+                  >
+                    <div class="reply-user">{{ reply.userNickname || reply.userName || '用户' }}:</div>
+                    <div class="reply-content">{{ reply.content }}</div>
+                    <div class="reply-time">{{ formatCommentTime(reply.createTime) }}</div>
+                  </div>
+                </div>
+              </el-card>
+            </transition-group>
           </div>
           
           <div class="dialog-pagination">
             <el-pagination
               background
-              layout="prev, pager, next"
+              layout="prev, pager, next, sizes"
               :total="totalComments"
               :page-size="commentPageSize"
               :current-page="commentPage"
+              :page-sizes="[5, 10, 15, 20]"
               @current-change="handleCommentPageChange"
+              @size-change="handleCommentSizeChange"
             />
           </div>
         </el-dialog>
@@ -459,7 +680,6 @@
                   <template #error>
                     <div class="image-error">
                       <el-icon><Picture /></el-icon>
-                      <span>加载失败</span>
                     </div>
                   </template>
                   <template #placeholder>
@@ -727,7 +947,7 @@
 </template>
 
 <script setup>
-import { Picture, Loading, Van, GoodsFilled, RefreshRight, ShoppingCart, SoldOut, Star, StarFilled, Top, TopRight, ChatDotRound, ArrowRight, Refresh, ChatRound, Pointer, ChatLineSquare, ArrowDown } from '@element-plus/icons-vue'
+import { Picture, Loading, Van, GoodsFilled, RefreshRight, ShoppingCart, SoldOut, Star, StarFilled, Top, TopRight, ChatDotRound, ArrowRight, Refresh, ChatRound, Pointer, ChatLineSquare, ArrowDown, Goods } from '@element-plus/icons-vue'
 import { useProductDetail } from '@/scripts/ProductDetail'
 import '@/styles/ProductDetail.scss'
 import CartMiniPopup from '@/components/product/CartMiniPopup.vue'
@@ -821,36 +1041,171 @@ const commentPage = ref(1)
 const commentPageSize = ref(10)
 const totalComments = ref(0)
 
+// 添加加载状态变量
+const commentsStatsLoading = ref(true);
+
+// 标签计数对象
+const tagCounts = ref({});
+
 // 获取商品评价
 const fetchProductComments = async (productId) => {
   try {
-    const res = await getProductComments(productId)
+    console.log('获取商品评价，ID:', productId);
+    const res = await getProductComments(productId);
+    console.log('商品评价API响应:', res);
+    
     if (res.code === 200 && res.data) {
-      comments.value = res.data
+      comments.value = res.data;
+      console.log('设置评价数据:', comments.value);
+      
+      // 评论数据加载完后，获取或计算评价统计数据
+      fetchProductRatingStats(productId);
     } else {
-      comments.value = []
+      console.warn('获取商品评价失败，API返回错误:', res.message || '未知错误');
+      comments.value = [];
+      commentsStatsLoading.value = false;
     }
   } catch (error) {
-    console.error('获取商品评价失败:', error)
-    comments.value = []
+    console.error('获取商品评价失败:', error);
+    comments.value = [];
+    commentsStatsLoading.value = false;
   }
 }
 
 // 获取商品评价统计
 const fetchProductRatingStats = async (productId) => {
+  commentsStatsLoading.value = true;
   try {
-    const res = await getProductRatingStats(productId)
+    console.log('获取商品评价统计，ID:', productId);
+    const res = await getProductRatingStats(productId);
+    console.log('评价统计API响应:', res);
+    
     if (res.code === 200 && res.data) {
-      ratingStats.value = res.data
+      ratingStats.value = res.data;
+      console.log('设置评价统计数据:', ratingStats.value);
       
-      // 提取评价标签
-      if (res.data.tags) {
-        commentTags.value = res.data.tags
+      // 检查数据结构是否完整
+      if (!ratingStats.value.ratingDistribution) {
+        console.warn('API返回的评价统计数据不完整，缺少ratingDistribution');
+        // 使用本地计算作为备选
+        calculateLocalRatingStats();
       }
+      
+      // 提取评价标签和计数
+      if (res.data.tags && Array.isArray(res.data.tags)) {
+        commentTags.value = res.data.tags;
+        
+        // 如果API返回的标签数据包含计数信息，提取出来
+        if (res.data.tagCounts) {
+          tagCounts.value = res.data.tagCounts;
+        } else {
+          // 否则初始化标签计数对象，稍后可能通过本地计算设置
+          tagCounts.value = {};
+          commentTags.value.forEach(tag => {
+            tagCounts.value[tag] = 0;
+          });
+        }
+        
+        console.log('评价标签:', commentTags.value);
+        console.log('标签计数:', tagCounts.value);
+      } else {
+        console.warn('API返回的评价标签数据不完整或格式错误');
+      }
+    } else {
+      console.warn('获取评价统计失败，API返回错误:', res.message || '未知错误');
+      // 使用本地计算作为备选
+      calculateLocalRatingStats();
     }
   } catch (error) {
-    console.error('获取商品评价统计失败:', error)
+    console.error('获取商品评价统计失败:', error);
+    // 使用本地计算作为备选
+    calculateLocalRatingStats();
+  } finally {
+    commentsStatsLoading.value = false;
   }
+}
+
+// 本地计算评价统计数据（当API未返回统计数据时使用）
+const calculateLocalRatingStats = () => {
+  console.log('开始本地计算评价统计数据');
+  if (!comments.value || !Array.isArray(comments.value)) {
+    console.warn('评论数据不可用，无法计算统计数据');
+    return;
+  }
+  
+  try {
+    const totalComments = comments.value.length;
+    console.log('评论总数:', totalComments);
+    
+    // 初始化评分分布对象
+    const ratingDist = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0
+    };
+    
+    // 统计各评分数量
+    comments.value.forEach(comment => {
+      const rating = Math.floor(comment.rating || 5); // 默认5星
+      if (rating >= 1 && rating <= 5) {
+        ratingDist[rating]++;
+      }
+    });
+    
+    console.log('本地计算的评分分布:', ratingDist);
+    
+    // 提取评论标签（如果有）
+    const tagCount = {};
+    comments.value.forEach(comment => {
+      if (comment.tags && Array.isArray(comment.tags)) {
+        comment.tags.forEach(tag => {
+          tagCount[tag] = (tagCount[tag] || 0) + 1;
+        });
+      }
+    });
+    
+    // 更新标签计数
+    tagCounts.value = tagCount;
+    
+    // 获取出现频率最高的标签（最多10个）
+    const sortedTags = Object.keys(tagCount)
+      .sort((a, b) => tagCount[b] - tagCount[a])
+      .slice(0, 10);
+    
+    console.log('本地提取的热门标签:', sortedTags);
+    console.log('标签计数:', tagCounts.value);
+    
+    // 更新ratingStats对象
+    ratingStats.value = {
+      totalComments: totalComments,
+      ratingDistribution: ratingDist,
+      averageRating: calculateAverageRating(ratingDist, totalComments),
+      tags: sortedTags
+    };
+    
+    console.log('本地计算的评价统计数据:', ratingStats.value);
+    
+    // 如果没有标签数据，则使用本地计算的结果
+    if (!commentTags.value || !commentTags.value.length) {
+      commentTags.value = sortedTags;
+    }
+  } catch (error) {
+    console.error('本地计算评价统计数据出错:', error);
+  }
+}
+
+// 计算平均评分
+const calculateAverageRating = (ratingDist, totalCount) => {
+  if (!totalCount) return 5;
+  
+  let sum = 0;
+  for (const [rating, count] of Object.entries(ratingDist)) {
+    sum += Number(rating) * count;
+  }
+  
+  return (sum / totalCount).toFixed(1);
 }
 
 // 计算筛选后的评价
@@ -885,15 +1240,34 @@ const filteredComments = computed(() => {
   return result
 })
 
-// 计算评价统计
+// 计算评分占比
 const calculateRatingPercentage = (rating) => {
-  if (!ratingStats.value || !ratingStats.value.ratingDistribution) return 0
+  // 检查ratingStats是否存在且包含必要数据
+  if (!ratingStats.value || !ratingStats.value.ratingDistribution) {
+    console.warn(`计算评分百分比失败: 评分数据不完整，评分: ${rating}`);
+    return 0;
+  }
   
-  const totalReviews = ratingStats.value.totalComments || 0
-  if (totalReviews === 0) return 0
+  const totalReviews = ratingStats.value.totalComments || 0;
+  if (totalReviews === 0) {
+    console.warn('计算评分百分比失败: 总评论数为0');
+    return 0;
+  }
   
-  const ratingCount = ratingStats.value.ratingDistribution[rating] || 0
-  return Math.round((ratingCount / totalReviews) * 100)
+  // 确保rating是数字且在1-5范围内
+  const validRating = Number(rating);
+  if (isNaN(validRating) || validRating < 1 || validRating > 5) {
+    console.warn(`计算评分百分比失败: 无效的评分值 ${rating}`);
+    return 0;
+  }
+  
+  // 获取当前评分的数量，如果不存在则为0
+  const ratingCount = ratingStats.value.ratingDistribution[validRating] || 0;
+  console.log(`评分 ${validRating} 的数量:`, ratingCount, '总数:', totalReviews);
+  
+  // 计算百分比并四舍五入到整数
+  const percentage = Math.round((ratingCount / totalReviews) * 100);
+  return percentage;
 }
 
 // 过滤评论
@@ -923,6 +1297,15 @@ const setCommentFilter = (filter) => {
 const handleCommentPageChange = (page) => {
   commentPage.value = page
   // 在实际应用中，这里应该调用API获取对应页的评论
+}
+
+// 处理评论页面大小变化
+const handleCommentSizeChange = (size) => {
+  commentPageSize.value = size;
+  // 重置页码为1，避免切换页面大小时出现空页
+  commentPage.value = 1;
+  // 重新加载评论数据
+  fetchComments();
 }
 
 // 格式化评论时间
@@ -956,12 +1339,12 @@ const formatCommentTime = (time) => {
 }
 
 // 监听商品ID变化，重新获取评价
-watch(() => product.value?.productId, (newProductId) => {
-  if (newProductId) {
-    fetchProductComments(newProductId)
-    fetchProductRatingStats(newProductId)
+watch(() => product.value?.productId || product.value?.goodsId, (newVal) => {
+  if (newVal) {
+    console.log('商品ID变化，重新获取评价数据:', newVal);
+    fetchProductComments(newVal);
   }
-})
+}, { immediate: true });
 
 // 获取本店推荐商品数据
 const fetchShopRecommendProducts = async () => {
@@ -1548,6 +1931,86 @@ const handleProductImages = () => {
   // 实现处理商品图片的逻辑
   console.log('处理商品图片');
 }
+
+// 获取评论文本
+const getRatingText = (rating) => {
+  switch (Math.floor(rating)) {
+    case 5:
+      return '非常满意';
+    case 4:
+      return '满意';
+    case 3:
+      return '一般';
+    case 2:
+      return '不满意';
+    case 1:
+      return '非常不满意';
+    default:
+      return '未知';
+  }
+}
+
+// 计算好评率
+const calculateGoodRating = () => {
+  // 检查ratingStats是否存在且包含必要数据
+  if (!ratingStats.value || !ratingStats.value.ratingDistribution) {
+    console.warn('计算好评率失败: 评分数据不完整');
+    return 95; // 默认好评率
+  }
+  
+  const totalReviews = ratingStats.value.totalComments || 0;
+  if (totalReviews === 0) {
+    console.warn('计算好评率失败: 总评论数为0');
+    return 100; // 默认100%好评
+  }
+  
+  try {
+    // 计算4星和5星评价的总数（好评定义为4-5星）
+    const positiveReviews = (ratingStats.value.ratingDistribution[4] || 0) + 
+                           (ratingStats.value.ratingDistribution[5] || 0);
+    
+    console.log('计算好评率:', positiveReviews, '/', totalReviews);
+    
+    // 计算好评率并四舍五入到整数
+    const positivePercentage = Math.round((positiveReviews / totalReviews) * 100);
+    return positivePercentage;
+  } catch (error) {
+    console.error('计算好评率出错:', error);
+    return 95; // 发生错误时的默认值
+  }
+}
+
+// 获取标签类型
+const getTagType = (index) => {
+  const tagTypes = ['', 'success', 'warning', 'danger', 'info'];
+  return tagTypes[index % tagTypes.length];
+}
+
+// 计算环形进度条的值
+const getCircleProgressValue = () => {
+  // 圆环总长度为2πr = 2 * 3.14159 * 45 ≈ 283
+  const totalLength = 283;
+  // 获取评分
+  const rating = Number(ratingStats.value?.averageRating || product.value?.rating || 5);
+  // 计算百分比
+  const percentage = (rating / 5);
+  console.log('环形进度条百分比:', percentage, '评分:', rating);
+  // 计算显示长度
+  return Math.min(totalLength, Math.max(0, percentage * totalLength));
+}
+
+// 星级评分的计算值
+const ratingStarsValue = computed(() => {
+  return Number(ratingStats.value?.averageRating || product.value?.rating || 5);
+});
+
+// 监听comments数据变化，自动更新统计数据（当API没有提供统计数据时使用）
+watch(comments, (newComments) => {
+  if (newComments && newComments.length > 0 && (!ratingStats.value || !ratingStats.value.ratingDistribution)) {
+    console.log('评论数据变化，重新计算统计数据');
+    calculateLocalRatingStats();
+  }
+}, { deep: true });
 </script>
 
 <style scoped>
@@ -1575,5 +2038,156 @@ const handleProductImages = () => {
 
 .status-action {
   margin-top: 20px;
+}
+
+/* 添加评分相关的加载状态样式 */
+.ratings-loading {
+  padding: 15px;
+}
+
+.comments-stats-loading {
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  margin-bottom: 30px;
+}
+
+.rating-tags-empty {
+  margin-top: 20px;
+  padding: 15px 0;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  /* 评价统计区域移动端优化 */
+  .comments-stats {
+    padding: 15px 10px !important;
+    flex-direction: column;
+    gap: 15px !important;
+  }
+  
+  .rating-overview {
+    flex-direction: column;
+    align-items: center !important;
+    gap: 15px !important;
+  }
+  
+  .rating-distribution {
+    width: 100%;
+  }
+  
+  .rating-text {
+    text-align: center;
+    margin-top: 10px;
+  }
+  
+  .rating-bar-item {
+    margin-bottom: 8px !important;
+  }
+  
+  .rating-score-circle {
+    width: 80px !important;
+    height: 80px !important;
+  }
+  
+  .score-number {
+    font-size: 20px !important;
+  }
+  
+  .score-max {
+    font-size: 10px !important;
+  }
+  
+  .tags-cloud {
+    justify-content: center;
+  }
+  
+  /* 评论卡片移动端优化 */
+  .comment-card {
+    padding: 10px !important;
+  }
+  
+  .comment-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  .comment-rating {
+    margin-top: 10px;
+    align-self: flex-start;
+  }
+  
+  .images-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 5px !important;
+  }
+  
+  .comment-footer .comment-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+  
+  /* 修复z-index问题 */
+  .right-floating-panel {
+    z-index: 1000 !important;
+  }
+  
+  /* 修复评分条宽度问题 */
+  .rating-bar-wrapper {
+    max-width: 70vw !important;
+  }
+}
+
+/* 修复暗模式适配 */
+@media (prefers-color-scheme: dark) {
+  .comments-stats {
+    background-color: #1a1a1a !important;
+  }
+  
+  .circle-bg circle {
+    stroke: #333 !important;
+  }
+  
+  .rating-bar-wrapper {
+    background-color: #333 !important;
+  }
+  
+  .rating-tags-empty .el-empty__description p {
+    color: #aaa !important;
+  }
+  
+  .comment-card {
+    background-color: #1a1a1a !important;
+    border-color: #333 !important;
+  }
+  
+  .comment-replies {
+    background-color: #1a1a1a !important;
+  }
+  
+  .reply-item {
+    background-color: #2a2a2a !important;
+  }
+}
+
+/* 优化评价统计展示动画 */
+.rating-bar {
+  transition: width 0.8s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+.circle-progress-bar circle {
+  transition: stroke-dasharray 1s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+.rating-tag {
+  transition: transform 0.3s ease !important;
+}
+
+.rating-tag:hover {
+  transform: translateY(-2px) !important;
+}
+
+.rating-tag.active {
+  transform: translateY(-2px) !important;
 }
 </style>

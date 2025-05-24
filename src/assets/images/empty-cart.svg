@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200px" height="200px" viewBox="0 0 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <title>空购物车</title>
+  <defs>
+    <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="linearGradient-1">
+      <stop stop-color="#F2F2F2" offset="0%"></stop>
+      <stop stop-color="#DDDDDD" offset="100%"></stop>
+    </linearGradient>
+  </defs>
+  <g id="empty-cart" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <circle id="bg-circle" fill="url(#linearGradient-1)" cx="100" cy="100" r="100"></circle>
+    <g id="cart" transform="translate(35.000000, 45.000000)">
+      <path d="M123,68 L37,68 C34.791,68 33,69.791 33,72 C33,74.209 34.791,76 37,76 L123,76 C125.209,76 127,74.209 127,72 C127,69.791 125.209,68 123,68 Z" id="Path" fill="#A0A0A0"></path>
+      <path d="M127,54 L33,54 L23,14 L5,14 C2.791,14 1,15.791 1,18 C1,20.209 2.791,22 5,22 L17,22 L27,62 C27.835,65.254 30.751,68 34,68 L123,68 C126.866,68 130,64.866 130,61 L130,57 C130,55.343 128.657,54 127,54 Z" id="Path" fill="#C0C0C0"></path>
+      <path d="M117,88 C112.582,88 109,91.582 109,96 C109,100.418 112.582,104 117,104 C121.418,104 125,100.418 125,96 C125,91.582 121.418,88 117,88 Z" id="Path" fill="#A0A0A0"></path>
+      <path d="M47,88 C42.582,88 39,91.582 39,96 C39,100.418 42.582,104 47,104 C51.418,104 55,100.418 55,96 C55,91.582 51.418,88 47,88 Z" id="Path" fill="#A0A0A0"></path>
+      <path d="M110,14 L110,44 M95,14 L95,44 M80,14 L80,44 M65,14 L65,44 M50,14 L50,44" id="lines" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round"></path>
+      <path d="M130,24 L38,24 C35.791,24 34,25.791 34,28 L34,44 L134,44 L134,28 C134,25.791 132.209,24 130,24 Z" id="Path" fill="#E0E0E0"></path>
+      <line x1="40" y1="34" x2="128" y2="34" id="Line" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round"></line>
+      <path d="M94,0 L74,0 C71.791,0 70,1.791 70,4 L70,14 L98,14 L98,4 C98,1.791 96.209,0 94,0 Z" id="Path" fill="#C0C0C0"></path>
+      <path d="M87,104 L77,104 L79,110 L85,110 L87,104 Z" id="Path" fill="#E0E0E0"></path>
+    </g>
+    <g id="cross" transform="translate(80.000000, 80.000000)" stroke="#FF6B6B" stroke-linecap="round" stroke-width="4">
+      <line x1="0" y1="0" x2="40" y2="40" id="Line-1"></line>
+      <line x1="40" y1="0" x2="0" y2="40" id="Line-2"></line>
+    </g>
+  </g>
+</svg> 

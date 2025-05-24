@@ -1,0 +1,18 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆形 -->
+  <circle cx="100" cy="100" r="80" fill="#f9f9f9" />
+  
+  <!-- 空评论气泡图标 -->
+  <path d="M55 75 H145 C152 75 155 78 155 85 V125 C155 132 152 135 145 135 H115 L100 150 L85 135 H55 C48 135 45 132 45 125 V85 C45 78 48 75 55 75 Z" fill="#ffffff" stroke="#e1e1e1" stroke-width="3" />
+  
+  <!-- 内部线条装饰 -->
+  <line x1="65" y1="95" x2="135" y2="95" stroke="#ededed" stroke-width="3" stroke-linecap="round" />
+  <line x1="65" y1="110" x2="115" y2="110" stroke="#ededed" stroke-width="3" stroke-linecap="round" />
+  <line x1="65" y1="125" x2="95" y2="125" stroke="#ededed" stroke-width="3" stroke-linecap="round" />
+  
+  <!-- 表情符号 -->
+  <circle cx="100" cy="170" r="12" fill="#ff6b6b" />
+  <path d="M90 170 H110" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <circle cx="92" cy="165" r="2" fill="#ffffff" />
+  <circle cx="108" cy="165" r="2" fill="#ffffff" />
+</svg> 

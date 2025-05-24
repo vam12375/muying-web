@@ -196,10 +196,19 @@ export default function usePayment() {
   };
 
   const getQRCodeForPayment = () => {
-    // 模拟不同支付方式的二维码图片
-    return selectedPaymentMethod.value === 'alipay' 
-      ? 'https://via.placeholder.com/240x240.png?text=支付宝支付'
-      : 'https://via.placeholder.com/240x240.png?text=微信支付';
+    // 为微信支付随机生成二维码，支付宝保持原样
+    if (selectedPaymentMethod.value === 'alipay') {
+      return 'https://via.placeholder.com/240x240.png?text=支付宝支付';
+    } else {
+      // 为微信支付随机生成不同样式的二维码
+      const randomId = Math.floor(Math.random() * 1000); // 随机数确保每次刷新页面得到不同二维码
+      const styles = ['dark', 'light', 'colored'];
+      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+      const size = 240;
+      const logoSize = 60;
+      // 使用qrcode.js的API参数，生成美观的二维码
+      return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=wechatpay_${randomId}_${Date.now()}&color=46-C01B&bgcolor=FFFFFF&qzone=2&margin=10&format=png&ecc=M`;
+    }
   };
 
   const startCountdown = () => {
@@ -407,6 +416,9 @@ export default function usePayment() {
           qrcodeLoading.value = false;
           showQRCode.value = true;
           startCountdown();
+          
+          // 打印一条日志便于调试
+          console.log('已生成随机微信支付二维码:', getQRCodeForPayment());
         }, 1500);
       }
     }

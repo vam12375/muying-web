@@ -39,7 +39,29 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { gsap } from 'gsap';
-import confetti from 'canvas-confetti';
+
+// 使用动态导入代替静态导入，以便处理可能的导入失败
+let confetti = null;
+const confettiLoaded = ref(false);
+const fallbackMode = ref(false);
+
+// 尝试加载canvas-confetti库
+const loadConfetti = async () => {
+  try {
+    // 使用动态导入 + vite 注释以避免构建警告
+    // @vite-ignore
+    const module = await import(/* @vite-ignore */ 'canvas-confetti');
+    confetti = module.default;
+    confettiLoaded.value = true;
+    console.log('Canvas-confetti 库加载成功');
+  } catch (error) {
+    console.warn('Canvas-confetti 库加载失败，将使用后备动画:', error);
+    fallbackMode.value = true;
+  }
+};
+
+// 在组件初始化时尝试加载
+loadConfetti();
 
 const props = defineProps({
   message: {
@@ -109,7 +131,20 @@ const playSuccessAnimation = () => {
   const tl = gsap.timeline({
     onComplete: () => {
       // 动画完成后播放彩色纸屑特效
-      playConfetti();
+      if (confettiLoaded.value) {
+        playConfetti();
+      } else if (fallbackMode.value) {
+        playFallbackConfetti();
+      } else {
+        // 再次尝试加载confetti库
+        loadConfetti().then(() => {
+          if (confettiLoaded.value) {
+            playConfetti();
+          } else {
+            playFallbackConfetti();
+          }
+        });
+      }
     }
   });
   
@@ -150,8 +185,10 @@ const playSuccessAnimation = () => {
   }, '-=0.3');
 };
 
-// 播放彩色纸屑特效
+// 播放彩色纸屑特效 (使用canvas-confetti库)
 const playConfetti = () => {
+  if (!confetti || !confettiContainer.value) return;
+  
   const canvas = document.createElement('canvas');
   canvas.className = 'confetti-canvas';
   confettiContainer.value.appendChild(canvas);
@@ -188,6 +225,57 @@ const playConfetti = () => {
   }, 400);
 };
 
+// 播放后备彩色纸屑特效 (使用CSS动画)
+const playFallbackConfetti = () => {
+  if (!confettiContainer.value) return;
+  
+  // 创建纸屑容器
+  const container = confettiContainer.value;
+  
+  // 清空之前的内容
+  container.innerHTML = '';
+  
+  // 创建多个纸屑元素
+  for (let i = 0; i < 50; i++) {
+    createConfettiParticle(container);
+  }
+};
+
+// 创建单个纸屑元素
+const createConfettiParticle = (container) => {
+  const colors = ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#277da1'];
+  const shapes = ['circle', 'square', 'triangle'];
+  
+  // 创建元素
+  const particle = document.createElement('div');
+  particle.className = `fallback-particle ${shapes[Math.floor(Math.random() * shapes.length)]}`;
+  
+  // 随机定位和样式
+  const size = Math.random() * 10 + 5; // 5-15px
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  const left = Math.random() * 100; // 0-100%
+  
+  // 应用样式
+  Object.assign(particle.style, {
+    backgroundColor: color,
+    width: `${size}px`,
+    height: `${size}px`,
+    left: `${left}%`,
+    top: '-20px',
+    opacity: Math.random() * 0.5 + 0.5, // 0.5-1.0
+    animationDuration: `${Math.random() * 3 + 2}s`, // 2-5s
+    animationDelay: `${Math.random() * 0.5}s`, // 0-0.5s
+  });
+  
+  // 添加到容器
+  container.appendChild(particle);
+  
+  // 动画结束后移除元素
+  particle.addEventListener('animationend', () => {
+    particle.remove();
+  });
+};
+
 // 监听completed属性变化
 watch(() => props.completed, (newVal) => {
   if (newVal) {
@@ -206,7 +294,6 @@ onMounted(() => {
     });
   }
 });
-
 </script>
 
 <style lang="scss" scoped>
@@ -412,6 +499,56 @@ onMounted(() => {
           width: 100%;
         }
       }
+    }
+  }
+}
+
+// 添加后备纸屑动画的样式
+@keyframes fallbackConfettiFall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes fallbackConfettiSway {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(50px);
+  }
+}
+
+.fallback-particle {
+  position: absolute;
+  animation: fallbackConfettiFall 3s linear forwards, fallbackConfettiSway 2s ease-in-out infinite;
+  
+  &.circle {
+    border-radius: 50%;
+  }
+  
+  &.square {
+    border-radius: 0;
+  }
+  
+  &.triangle {
+    width: 0 !important;
+    height: 0 !important;
+    background-color: transparent !important;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 10px solid;
+    
+    &:after {
+      content: '';
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 10px solid;
     }
   }
 }

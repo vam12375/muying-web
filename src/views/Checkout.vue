@@ -283,8 +283,8 @@
                     />
                     
                     <div class="points-info-tip">
-                      最多可使用<span class="highlight">{{ Math.min(userPoints, maxPointsUsage) }}</span>积分
-                      （抵扣<span class="highlight">{{ formatPrice(Math.min(Math.floor(Math.min(userPoints, maxPointsUsage) / 100), maxPointsDiscount)) }}</span>元）
+                      最多可使用<span class="highlight">5000</span>积分
+                      （抵扣<span class="highlight">50</span>元）
                     </div>
                     
                     <div class="points-discount">

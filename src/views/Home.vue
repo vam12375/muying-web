@@ -50,6 +50,7 @@ import BrandShowcase from '@/components/home/BrandShowcase.vue';
 import RecommendedForYou from '@/components/home/RecommendedForYou.vue';
 import { ElMessage } from 'element-plus';
 import { getProductList, getHotProducts, getNewProducts, getRecommendedProducts } from '@/api/product';
+import { useUserStore } from '@/stores/user';
 
 export default {
   name: 'HomePage',
@@ -76,7 +77,7 @@ export default {
           id: 1,
           title: '妈妈的选择，宝宝的呵护',
           description: '严选全球优质母婴用品，为宝宝提供最好的呵护',
-          image: '/banners/banner1.jpg',
+          image: '/banners/banner1.png',
           btnText: '立即选购',
           btnType: 'primary',
           link: '/products/baby-care',
@@ -88,7 +89,7 @@ export default {
           id: 2,
           title: '初春上新，温暖出行',
           description: '精选婴幼儿春季新款服饰，舒适保暖又时尚',
-          image: '/banners/banner2.jpg',
+          image: '/banners/banner2.png',
           btnText: '查看详情',
           btnType: 'secondary',
           link: '/products/baby-clothes',
@@ -100,12 +101,24 @@ export default {
           id: 3,
           title: '科学营养，健康成长',
           description: '来自全球的优质辅食和营养品，助力宝宝健康成长',
-          image: '/banners/banner3.jpg',
+          image: '/banners/banner3.png',
           btnText: '了解更多',
           btnType: 'accent',
           link: '/products/nutrition',
           titleAnimation: 'fadeInScale',
           descAnimation: 'fadeInScale',
+          btnAnimation: 'fadeInUp'
+        },
+        {
+          id: 4,
+          title: '智能育儿，科技陪伴',
+          description: '前沿科技产品，让育儿更轻松更智能',
+          image: '/banners/banner4.png',
+          btnText: '探索科技',
+          btnType: 'primary',
+          link: '/products/tech',
+          titleAnimation: 'fadeInRight',
+          descAnimation: 'fadeInLeft',
           btnAnimation: 'fadeInUp'
         }
       ],
@@ -118,7 +131,7 @@ export default {
         badge: '限时特惠',
         buttonText: '立即抢购',
         buttonLink: '/promotion/baby-festival',
-        backgroundImage: '/banners/promotion-bg.jpg',
+        backgroundImage: '/banners/banner5.png',
         countdownEndDate: (() => {
           const endDate = new Date();
           endDate.setDate(endDate.getDate() + 7);
@@ -139,10 +152,12 @@ export default {
   },
   methods: {
     checkLoginStatus() {
-      // 这里应该实现真实的登录状态检查逻辑
-      // 示例代码：
-      const token = localStorage.getItem('user_token');
-      this.isLoggedIn = !!token;
+      // 使用Pinia userStore获取登录状态
+      const userStore = useUserStore();
+      this.isLoggedIn = userStore.isLoggedIn;
+      
+      // 监听登录状态变化，主要用于调试
+      console.log('Home页面检测到用户登录状态:', this.isLoggedIn);
     },
     loadHomeData() {
       // 加载首页所需的各种数据
@@ -231,12 +246,115 @@ export default {
       // 加载个性化推荐数据
       this.isRecommendationsLoading = true;
       
-      // 模拟API请求延迟
-      setTimeout(() => {
-        // 这里应该是真实的API调用
-        this.isRecommendationsLoading = false;
-        // 使用组件默认数据
-      }, 1000);
+      // 准备查询参数
+      const params = {
+        limit: 12, // 增加获取的数量，以便随机选择
+        userId: localStorage.getItem('userId') || undefined, // 获取用户ID
+        type: this.isLoggedIn ? 'personalized' : 'popular', // 已登录用户获取个性化推荐，否则获取热门推荐
+        timestamp: Date.now(), // 添加时间戳，防止API缓存结果
+        random: Math.random().toString(36).substring(2,7) // 添加随机字符串，确保每次请求都不同
+      };
+      
+      // 调用API获取推荐数据
+      getRecommendedProducts(params)
+        .then(res => {
+          if (res.code === 200 && res.data) {
+            // 将API返回的数据转换为组件需要的格式
+            const recommendations = res.data.map(item => ({
+              id: item.productId,
+              name: item.productName,
+              description: item.productDetail ? 
+                (item.productDetail.length > 50 ? item.productDetail.substring(0, 50) + '...' : item.productDetail) : 
+                '暂无描述',
+              image: item.productImg ? 
+                (item.productImg.startsWith('/') ? item.productImg : `/${item.productImg}`) : 
+                '/images/product-placeholder.jpg',
+              price: item.priceNew || 0,
+              originalPrice: item.priceOld || null,
+              discount: item.priceOld && item.priceNew ? 
+                Math.round((1 - item.priceNew / item.priceOld) * 100) : null,
+              rating: item.rating || 4.5,
+              matchPercent: item.matchScore || this.generateRandomMatchScore(), // 使用API返回的匹配分数或随机生成
+              tags: this.generateRecommendTags(item),
+              inWishlist: item.isFavorite === 1 // 是否已收藏
+            }));
+            
+            // 对推荐数据进行随机排序，确保每次刷新页面呈现不同的顺序
+            const shuffledRecommendations = this.shuffleArray(recommendations);
+            
+            // 只取前6个推荐，避免显示过多
+            const limitedRecommendations = shuffledRecommendations.slice(0, 6);
+            
+            // 更新推荐数据
+            this.recommendations = limitedRecommendations;
+            console.log(`获取到个性化推荐数据: 原始${recommendations.length}条，随机选取${limitedRecommendations.length}条`);
+          } else {
+            console.warn('获取推荐数据失败:', res.message || '未知错误');
+            // 使用空数组，让组件使用默认数据
+            this.recommendations = [];
+          }
+        })
+        .catch(error => {
+          console.error('获取推荐数据出错:', error);
+          // 使用空数组，让组件使用默认数据
+          this.recommendations = [];
+          
+          // 只有在用户登录状态下才显示错误提示
+          if (this.isLoggedIn) {
+            ElMessage({
+              message: '获取个性化推荐失败，将显示默认推荐',
+              type: 'warning',
+              duration: 3000
+            });
+          }
+        })
+        .finally(() => {
+          this.isRecommendationsLoading = false;
+        });
+    },
+    
+    // 为推荐商品生成标签
+    generateRecommendTags(product) {
+      let tags = [];
+      
+      // 转换API返回的标签为组件需要的格式
+      if (product.tags && Array.isArray(product.tags)) {
+        tags = product.tags.map(tag => ({
+          id: tag.id || tag.name,
+          name: tag.name,
+          type: tag.type || 'default'
+        }));
+      } else {
+        // 根据商品属性生成标签
+        if (this.isLoggedIn) {
+          tags.push({ id: 'for_you', name: '为您推荐', type: 'primary' });
+        }
+        
+        if (product.isNew === 1) {
+          tags.push({ id: 'new', name: '新品', type: 'success' });
+        }
+        
+        if (product.priceOld && product.priceNew && product.priceNew < product.priceOld) {
+          tags.push({ id: 'sale', name: '特惠', type: 'danger' });
+        }
+        
+        if (product.isHot === 1) {
+          tags.push({ id: 'hot', name: '热门', type: 'warning' });
+        }
+        
+        if (product.isRecommend === 1 && tags.length === 0) {
+          tags.push({ id: 'popular', name: '热门', type: 'info' });
+        }
+      }
+      
+      return tags;
+    },
+    
+    // 生成随机匹配度（仅在API未返回匹配度时使用）
+    generateRandomMatchScore() {
+      // 对登录用户生成较高的匹配度
+      const minScore = this.isLoggedIn ? 85 : 70;
+      return Math.floor(Math.random() * (100 - minScore) + minScore);
     },
     addToCart(product) {
       // 添加到购物车的逻辑

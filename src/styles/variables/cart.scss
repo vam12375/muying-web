@@ -1,0 +1,61 @@
+/**
+ * 购物车页面样式变量
+ * 统一管理购物车相关的颜色、大小、间距等
+ */
+
+:root {
+  // 购物车基础颜色
+  --cart-bg-color: #ffffff;
+  --cart-border-color: rgba(0, 0, 0, 0.05);
+  --cart-border-hover-color: rgba(0, 0, 0, 0.1);
+  --cart-shadow-color: rgba(0, 0, 0, 0.05);
+  --cart-shadow-hover-color: rgba(0, 0, 0, 0.12);
+  
+  // 文字颜色
+  --cart-text-color: #303133;
+  --cart-text-light-color: #606266;
+  --cart-text-muted-color: #909399;
+  
+  // 特殊颜色
+  --cart-price-color: var(--el-color-danger, #f56c6c);
+  --cart-discount-color: #67c23a;
+  --cart-hover-bg: #f5f7fa;
+  
+  // 动画相关
+  --cart-transition-duration: 0.3s;
+  --cart-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  // 尺寸相关
+  --cart-item-image-size-small: 80px;
+  --cart-item-image-size-large: 200px;
+  --cart-border-radius-small: 4px;
+  --cart-border-radius-medium: 8px;
+  --cart-border-radius-large: 16px;
+  
+  // 间距相关
+  --cart-spacing-xs: 4px;
+  --cart-spacing-sm: 8px;
+  --cart-spacing-md: 16px;
+  --cart-spacing-lg: 24px;
+  --cart-spacing-xl: 32px;
+}
+
+// 暗色模式
+@media (prefers-color-scheme: dark) {
+  :root {
+    // 购物车基础颜色
+    --cart-bg-color: #1c1c1c;
+    --cart-border-color: rgba(255, 255, 255, 0.05);
+    --cart-border-hover-color: rgba(255, 255, 255, 0.1);
+    --cart-shadow-color: rgba(0, 0, 0, 0.3);
+    --cart-shadow-hover-color: rgba(0, 0, 0, 0.5);
+    
+    // 文字颜色
+    --cart-text-color: #e0e0e0;
+    --cart-text-light-color: #c0c0c0;
+    --cart-text-muted-color: #909090;
+    
+    // 特殊颜色
+    --cart-hover-bg: #2c2c2c;
+  }
+} 

@@ -58,13 +58,23 @@
 
         <!-- 已登录状态 - 改进交互方式 -->
         <div v-else class="user-profile">
-          <div class="avatar-container" @click="toggleDropdown">
+          <div 
+            class="avatar-container" 
+            @mouseenter="handleMouseEnter" 
+            @mouseleave="handleMenuMouseLeave"
+            @click="toggleDropdown"
+          >
             <el-avatar :src="userInfo.avatar" :size="40">{{ userStore.username.substring(0, 1) }}</el-avatar>
             <span class="username">{{ userStore.username }}</span>
           </div>
           
           <!-- 下拉菜单 -->
-          <div v-show="showDropdown" class="dropdown-menu">
+          <div 
+            v-show="showDropdown" 
+            class="dropdown-menu"
+            @mouseenter="handleMenuMouseEnter"
+            @mouseleave="handleMenuMouseLeave"
+          >
             <router-link to="/user" class="dropdown-item" @click="closeDropdown">
               <el-icon><User /></el-icon>
               <span>个人中心</span>
@@ -100,7 +110,7 @@
 
 <script>
 export default {
-  name: 'Navbar'
+  name: 'NavbarComponent'
 }
 </script>
 
@@ -110,7 +120,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { useMessageStore } from '@/stores/message'
-import { Search, Message, ShoppingCart, Menu, User, List, Star, Discount, SwitchButton } from '@element-plus/icons-vue'
+import { Search, Message, ShoppingCart, User, List, Star, Discount, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import defaultAvatarImg from '@/assets/default-avatar.png'
 
@@ -120,6 +130,8 @@ const isFixed = ref(false)
 const showDropdown = ref(false)
 const hasNewNotification = ref(false)
 const messageRefreshTimer = ref(null)
+const dropdownCloseTimer = ref(null) // 下拉菜单关闭定时器
+const hoverDelay = 300 // 悬停延迟时间（毫秒）
 
 // Store
 const userStore = useUserStore()
@@ -130,11 +142,25 @@ const route = useRoute()
 
 // 计算属性
 const isLoggedIn = computed(() => userStore.isLoggedIn)
-const userInfo = computed(() => ({
-  nickname: userStore.nickname || userStore.username,
-  avatar: userStore.avatar || defaultAvatarImg,
-  id: userStore.id
-}))
+const userInfo = computed(() => {
+  // 智能修复头像URL
+  let avatarUrl = userStore.avatar || defaultAvatarImg
+  if (userStore.avatar) {
+    avatarUrl = userStore.fixAvatarUrl(userStore.avatar)
+    console.log('Navbar: 修复后的头像URL:', avatarUrl)
+    
+    // 如果修复后为空，使用默认头像
+    if (!avatarUrl) {
+      avatarUrl = defaultAvatarImg
+    }
+  }
+  
+  return {
+    nickname: userStore.nickname || userStore.username,
+    avatar: avatarUrl,
+    id: userStore.id
+  }
+})
 const cartItemCount = computed(() => {
   const count = cartStore.cartItemCount;
   console.log('Navbar 显示的购物车数量:', count);
@@ -164,6 +190,35 @@ const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value
 }
 
+// 鼠标移入头像区域
+const handleMouseEnter = () => {
+  // 清除可能存在的关闭定时器
+  if (dropdownCloseTimer.value) {
+    clearTimeout(dropdownCloseTimer.value)
+    dropdownCloseTimer.value = null
+  }
+  // 显示下拉菜单
+  showDropdown.value = true
+}
+
+// 鼠标移入下拉菜单
+const handleMenuMouseEnter = () => {
+  // 清除关闭定时器
+  if (dropdownCloseTimer.value) {
+    clearTimeout(dropdownCloseTimer.value)
+    dropdownCloseTimer.value = null
+  }
+}
+
+// 鼠标移出下拉菜单
+const handleMenuMouseLeave = () => {
+  // 延迟关闭菜单，给用户一定的操作时间
+  dropdownCloseTimer.value = setTimeout(() => {
+    showDropdown.value = false
+    dropdownCloseTimer.value = null
+  }, hoverDelay)
+}
+
 // 关闭下拉菜单方法
 const closeDropdown = () => {
   nextTick(() => {
@@ -174,8 +229,15 @@ const closeDropdown = () => {
 // 点击外部关闭下拉菜单
 const handleClickOutside = (event) => {
   const userProfile = document.querySelector('.user-profile')
+  // 只有当点击的不是用户资料区域且下拉菜单正在显示时才关闭菜单
   if (userProfile && !userProfile.contains(event.target) && showDropdown.value) {
+    // 立即关闭菜单，无需延迟
     showDropdown.value = false
+    // 清除可能存在的定时器
+    if (dropdownCloseTimer.value) {
+      clearTimeout(dropdownCloseTimer.value)
+      dropdownCloseTimer.value = null
+    }
   }
 }
 
@@ -253,6 +315,11 @@ onBeforeUnmount(() => {
   // 清除消息刷新定时器
   if (messageRefreshTimer.value) {
     clearInterval(messageRefreshTimer.value);
+  }
+  
+  // 清除下拉菜单定时器
+  if (dropdownCloseTimer.value) {
+    clearTimeout(dropdownCloseTimer.value);
   }
 });
 </script>
@@ -518,6 +585,19 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   padding: 8px 0;
   z-index: 1000;
+  opacity: 1;
+  transform-origin: top right;
+  transform: translateY(0);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  
+  &:before {
+    content: '';
+    position: absolute;
+    top: -16px;
+    right: 12px;
+    border: 8px solid transparent;
+    border-bottom-color: white;
+  }
 }
 
 .dropdown-item {
@@ -633,5 +713,17 @@ onBeforeUnmount(() => {
   .navbar-right {
     margin-left: 8px;
   }
+}
+
+/* 使用Vue的v-show过渡效果 */
+.v-enter-active,
+.v-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style> 

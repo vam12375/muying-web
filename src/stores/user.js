@@ -87,29 +87,111 @@ export const useUserStore = defineStore('user', {
       this.token = token;
       console.log('userStore.checkAuth: token已设置到state');
       
-      // 从localStorage获取用户ID和用户名
+      // 从localStorage恢复所有用户信息
       const storedUserId = localStorage.getItem('userId');
       const storedUsername = localStorage.getItem('username');
+      const storedNickname = localStorage.getItem('nickname');
+      const storedEmail = localStorage.getItem('email');
+      const storedPhone = localStorage.getItem('phone');
+      const storedGender = localStorage.getItem('gender');
+      const storedBirthday = localStorage.getItem('birthday');
+      const storedCreateTime = localStorage.getItem('createTime');
+      const storedRole = localStorage.getItem('role');
+      const storedAvatar = localStorage.getItem('userAvatar');
       
-      // 如果已有用户ID，可能不需要重新获取用户信息
-      if (this.id && this.username) {
-        console.log('userStore.checkAuth: 已有用户ID和用户名，无需重新获取用户信息');
-        return true;
-      } else if (storedUserId && storedUsername) {
-        // 如果store中没有但localStorage中有，则从localStorage恢复
-        console.log('userStore.checkAuth: 从localStorage恢复用户信息');
+      console.log('userStore.checkAuth: 从localStorage获取的完整信息:', {
+        storedUserId,
+        storedUsername,
+        storedNickname,
+        storedEmail,
+        storedPhone,
+        storedGender,
+        storedBirthday,
+        storedCreateTime,
+        storedRole,
+        storedAvatar: !!storedAvatar
+      });
+      
+      // 恢复所有用户信息到state
+      if (storedUserId) {
         this.id = storedUserId;
+        console.log('userStore.checkAuth: 恢复用户ID:', storedUserId);
+      }
+      
+      if (storedUsername) {
         this.username = storedUsername;
-        this.avatar = localStorage.getItem('userAvatar') || '';
+        console.log('userStore.checkAuth: 恢复用户名:', storedUsername);
+      }
+      
+      if (storedNickname) {
+        this.nickname = storedNickname;
+        console.log('userStore.checkAuth: 恢复昵称:', storedNickname);
+      }
+      
+      if (storedEmail) {
+        this.email = storedEmail;
+        console.log('userStore.checkAuth: 恢复邮箱:', storedEmail);
+      }
+      
+      if (storedPhone) {
+        this.phone = storedPhone;
+        console.log('userStore.checkAuth: 恢复手机号:', storedPhone);
+      }
+      
+      if (storedGender) {
+        this.gender = storedGender;
+        console.log('userStore.checkAuth: 恢复性别:', storedGender);
+      }
+      
+      if (storedBirthday) {
+        this.birthday = storedBirthday;
+        console.log('userStore.checkAuth: 恢复生日:', storedBirthday);
+      }
+      
+      if (storedCreateTime) {
+        this.createTime = storedCreateTime;
+        console.log('userStore.checkAuth: 恢复注册时间:', storedCreateTime);
+      }
+      
+      if (storedRole) {
+        this.role = storedRole;
+        console.log('userStore.checkAuth: 恢复角色:', storedRole);
+      }
+      
+      // 处理头像URL
+      if (storedAvatar) {
+        console.log('userStore.checkAuth: 从localStorage获取头像URL:', storedAvatar);
+        
+        // 使用智能修复方法处理头像URL
+        const fixedAvatar = this.fixAvatarUrl(storedAvatar);
+        console.log('userStore.checkAuth: 修复后的头像URL:', fixedAvatar);
+        
+        this.avatar = fixedAvatar;
+        
+        // 如果URL被修复了，更新localStorage
+        if (fixedAvatar !== storedAvatar) {
+          localStorage.setItem('userAvatar', fixedAvatar);
+          console.log('userStore.checkAuth: 修复后的头像URL已保存到localStorage');
+        }
+        
+        // 强制刷新当前页面上的所有头像图片，添加时间戳防止缓存
+        this.refreshAvatarDisplays();
+      } else {
+        console.log('userStore.checkAuth: localStorage中没有头像URL');
+      }
+      
+      // 如果基本信息已从localStorage恢复，直接返回成功
+      if (storedUserId && storedUsername) {
+        console.log('userStore.checkAuth: 用户信息已从localStorage完全恢复');
         return true;
       }
       
-      // 尝试获取用户信息
-      console.log('userStore.checkAuth: 尝试获取用户信息');
+      // 如果localStorage中信息不完整，尝试从API获取用户信息
+      console.log('userStore.checkAuth: localStorage信息不完整，尝试从API获取用户信息');
       const result = await this.fetchUserInfo();
-      console.log('userStore.checkAuth: 获取用户信息结果:', result);
+      console.log('userStore.checkAuth: API获取用户信息结果:', !!result);
       
-      return result;
+      return !!result;
     },
     
     // 用户登录
@@ -149,6 +231,21 @@ export const useUserStore = defineStore('user', {
           this.birthday = userInfo.birthday;
           this.createTime = userInfo.createTime;
           this.role = userInfo.role;
+          
+          // 持久化完整用户信息到localStorage
+          localStorage.setItem('userId', userInfo.userId || '');
+          localStorage.setItem('username', userInfo.username || '');
+          localStorage.setItem('nickname', userInfo.nickname || '');
+          localStorage.setItem('email', userInfo.email || '');
+          localStorage.setItem('phone', userInfo.phone || '');
+          localStorage.setItem('gender', userInfo.gender || '');
+          localStorage.setItem('birthday', userInfo.birthday || '');
+          localStorage.setItem('createTime', userInfo.createTime || '');
+          localStorage.setItem('role', userInfo.role || '');
+          if (userInfo.avatar) {
+            localStorage.setItem('userAvatar', userInfo.avatar);
+          }
+          console.log('用户完整信息已保存到localStorage');
           
           ElMessage.success('登录成功');
           return true;
@@ -205,28 +302,19 @@ export const useUserStore = defineStore('user', {
     
     // 获取用户信息
     async fetchUserInfo() {
-      console.log('userStore.fetchUserInfo: 开始获取用户信息');
-      
-      if (!this.token) {
-        console.log('userStore.fetchUserInfo: 无token，无法获取用户信息');
-        return false;
-      }
-      
-      this.loading = true;
-      
       try {
-        console.log('userStore.fetchUserInfo: 发送获取用户信息请求');
+        console.log('userStore.fetchUserInfo: 开始获取用户信息');
         const res = await getUserInfo();
         console.log('userStore.fetchUserInfo: 获取用户信息响应:', res);
         
         if (res.code === 200 && res.data) {
           const userInfo = res.data;
+          console.log('userStore.fetchUserInfo: 解析到的用户信息:', userInfo);
           
           // 更新状态
-          this.id = userInfo.id || userInfo.userId; // 兼容不同的字段名
+          this.id = userInfo.userId || userInfo.id;
           this.username = userInfo.username;
           this.nickname = userInfo.nickname;
-          this.avatar = userInfo.avatar;
           this.email = userInfo.email;
           this.phone = userInfo.phone;
           this.gender = userInfo.gender;
@@ -234,25 +322,36 @@ export const useUserStore = defineStore('user', {
           this.createTime = userInfo.createTime;
           this.role = userInfo.role;
           
-          console.log('userStore.fetchUserInfo: 用户信息已更新, ID:', this.id);
+          // 处理头像URL并更新
+          if (userInfo.avatar) {
+            const fixedAvatarUrl = this.fixAvatarUrl(userInfo.avatar);
+            this.avatar = fixedAvatarUrl;
+            localStorage.setItem('userAvatar', fixedAvatarUrl);
+            console.log('userStore.fetchUserInfo: 头像URL已修复并保存:', fixedAvatarUrl);
+          }
           
-          // 加载用户地址
-          this.fetchUserAddresses();
+          // 持久化完整用户信息到localStorage
+          localStorage.setItem('userId', userInfo.userId || userInfo.id || '');
+          localStorage.setItem('username', userInfo.username || '');
+          localStorage.setItem('nickname', userInfo.nickname || '');
+          localStorage.setItem('email', userInfo.email || '');
+          localStorage.setItem('phone', userInfo.phone || '');
+          localStorage.setItem('gender', userInfo.gender || '');
+          localStorage.setItem('birthday', userInfo.birthday || '');
+          localStorage.setItem('createTime', userInfo.createTime || '');
+          localStorage.setItem('role', userInfo.role || '');
           
-          return true;
+          console.log('userStore.fetchUserInfo: 用户信息获取成功并已持久化');
+          return userInfo;
         } else {
-          console.error('userStore.fetchUserInfo: 获取用户信息失败:', res.message);
-          this.resetUserInfo();
-          ElMessage.error(res.message || '获取用户信息失败');
-          return false;
+          console.error('userStore.fetchUserInfo: 获取用户信息失败', res);
+          ElMessage.error('获取用户信息失败');
+          return null;
         }
       } catch (error) {
-        console.error('userStore.fetchUserInfo: 获取用户信息出错:', error);
-        ElMessage.error('获取用户信息失败，请重新登录');
-        this.resetUserInfo();
-        return false;
-      } finally {
-        this.loading = false;
+        console.error('userStore.fetchUserInfo: 获取用户信息异常:', error);
+        ElMessage.error('获取用户信息异常');
+        return null;
       }
     },
     
@@ -349,22 +448,40 @@ export const useUserStore = defineStore('user', {
       
       try {
         const formData = new FormData();
-        formData.append('avatar', file);
+        formData.append('file', file);
         
         const res = await uploadAvatar(formData);
+        console.log('头像上传响应:', res);
         
         if (res.code === 200 && res.data) {
-          this.avatar = res.data.avatarUrl;
+          // 获取返回的头像URL
+          let avatarUrl = res.data.avatarUrl || res.data;
+          console.log('原始头像URL:', avatarUrl);
+          
+          // 使用智能修复方法处理头像URL
+          avatarUrl = this.fixAvatarUrl(avatarUrl);
+          console.log('修复后的头像URL:', avatarUrl);
+          
+          // 更新状态
+          this.avatar = avatarUrl;
+          
+          // 持久化到localStorage  
+          localStorage.setItem('userAvatar', avatarUrl);
+          localStorage.setItem('userId', this.id);
+          localStorage.setItem('username', this.username);
+          console.log('头像URL已保存到localStorage');
+          
           ElMessage.success('头像上传成功');
-          return true;
+          return {success: true, avatarUrl};
         } else {
+          console.error('头像上传响应错误:', res);
           ElMessage.error(res.message || '头像上传失败');
-          return false;
+          return {success: false, error: res.message};
         }
       } catch (error) {
         console.error('头像上传失败:', error);
         ElMessage.error('头像上传失败，请稍后重试');
-        return false;
+        return {success: false, error: error.message};
       } finally {
         this.loading = false;
       }
@@ -582,6 +699,91 @@ export const useUserStore = defineStore('user', {
       this.addresses = [];
       
       console.log('userStore.resetUserInfo: 用户信息已重置');
+    },
+    
+    // 智能修复头像URL
+    fixAvatarUrl(url) {
+      console.log('userStore.fixAvatarUrl: 开始处理头像URL:', url);
+      
+      // 如果URL为空或无效，返回空字符串
+      if (!url || typeof url !== 'string' || url.trim() === '') {
+        console.log('userStore.fixAvatarUrl: URL为空或无效，返回空字符串');
+        return '';
+      }
+      
+      const trimmedUrl = url.trim();
+      
+      // 如果URL已经是正确的前端服务器地址（5173端口），直接返回
+      if (trimmedUrl.startsWith('http://localhost:5173')) {
+        console.log('userStore.fixAvatarUrl: URL已经指向前端服务器5173端口，保持不变');
+        return trimmedUrl;
+      }
+      
+      // 如果URL指向后端服务器地址（8080端口），转换为5173端口
+      if (trimmedUrl.startsWith('http://localhost:8080')) {
+        const fixedUrl = trimmedUrl.replace('http://localhost:8080', 'http://localhost:5173');
+        console.log('userStore.fixAvatarUrl: 将8080端口URL转换为5173端口:', fixedUrl);
+        return fixedUrl;
+      }
+      
+      // 如果URL是相对路径且以/avatars开头，添加前端服务器前缀
+      if (trimmedUrl.startsWith('/avatars')) {
+        const fixedUrl = `http://localhost:5173${trimmedUrl}`;
+        console.log('userStore.fixAvatarUrl: 相对路径转换为前端服务器绝对路径:', fixedUrl);
+        return fixedUrl;
+      }
+      
+      // 如果URL是相对路径但不以/avatars开头，尝试构建完整路径
+      if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+        // 如果不是以/开头，添加/avatars前缀
+        const path = trimmedUrl.startsWith('/') ? trimmedUrl : `/avatars/${trimmedUrl}`;
+        const fixedUrl = `http://localhost:5173${path}`;
+        console.log('userStore.fixAvatarUrl: 构建完整的前端服务器头像URL路径:', fixedUrl);
+        return fixedUrl;
+      }
+      
+      // 如果是其他HTTP/HTTPS URL，保持原样
+      console.log('userStore.fixAvatarUrl: 其他格式URL，保持原样');
+      return trimmedUrl;
+    },
+    
+    // 刷新页面上的所有头像显示
+    refreshAvatarDisplays() {
+      console.log('userStore.refreshAvatarDisplays: 刷新页面头像显示');
+      
+      if (!this.avatar) {
+        console.log('userStore.refreshAvatarDisplays: 没有头像URL，无法刷新');
+        return;
+      }
+      
+      // 添加时间戳以防止浏览器缓存
+      const timestampedUrl = this.avatar + (this.avatar.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+      console.log('userStore.refreshAvatarDisplays: 带时间戳的头像URL:', timestampedUrl);
+      
+      // 刷新所有用户头像元素
+      setTimeout(() => {
+        // 用户信息页面的头像
+        const profileAvatarImages = document.querySelectorAll('.user-avatar');
+        if (profileAvatarImages && profileAvatarImages.length > 0) {
+          console.log('userStore.refreshAvatarDisplays: 更新用户信息页面头像元素，数量:', profileAvatarImages.length);
+          profileAvatarImages.forEach(img => {
+            img.src = timestampedUrl;
+          });
+        } else {
+          console.log('userStore.refreshAvatarDisplays: 未找到用户信息页面头像元素');
+        }
+        
+        // 导航栏头像
+        const navAvatarImages = document.querySelectorAll('.navbar-avatar img, .header-avatar img');
+        if (navAvatarImages && navAvatarImages.length > 0) {
+          console.log('userStore.refreshAvatarDisplays: 更新导航栏头像元素，数量:', navAvatarImages.length);
+          navAvatarImages.forEach(img => {
+            img.src = timestampedUrl;
+          });
+        } else {
+          console.log('userStore.refreshAvatarDisplays: 未找到导航栏头像元素');
+        }
+      }, 100); // 延迟100ms执行，确保DOM已经更新
     }
   }
 }) 

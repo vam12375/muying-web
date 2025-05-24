@@ -1,6 +1,6 @@
 <template>
   <div class="product-list-page">
-    <!-- 顶部横幅 -->
+    <!-- 顶部横幅 - 现代化设计 -->
     <section class="hero-banner">
       <div class="container">
         <div class="banner-content">
@@ -11,6 +11,10 @@
           >
             <h1 class="banner-title">精选母婴好物</h1>
             <p class="banner-subtitle">为宝宝的每一天提供温馨呵护</p>
+            <el-button type="primary" size="large" class="banner-button">
+              立即选购
+              <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+            </el-button>
           </motion-div>
         </div>
         
@@ -33,31 +37,64 @@
     </section>
     
     <div class="container mx-auto px-4 pb-20">
-      <!-- 快速分类导航 -->
-      <div class="quick-categories">
-        <motion-div
-          :initial="{ opacity: 0, y: 20 }"
-          :animate="{ opacity: 1, y: 0 }"
-          :transition="{ duration: 0.5, delay: 0.2 }"
-          class="quick-categories-wrapper"
-        >
+      <!-- 品牌展示区 -->
+      <section class="brands-showcase">
+        <div class="section-header">
+          <h2 class="section-title">热门品牌</h2>
+          <el-button link class="view-all-btn">
+            查看全部
+            <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+          </el-button>
+        </div>
+        
+        <div class="brands-grid">
+          <div v-for="(brand, index) in [
+            {name: '惠氏', image: '/brands/wyeth.png'}, 
+            {name: '帮宝适', image: '/brands/pampers.png'},
+            {name: '美素佳儿', image: '/brands/friso.png'},
+            {name: '美德乐', image: '/brands/medela.png'},
+            {name: '贝亲', image: '/brands/pigeon.png'},
+            {name: '嘉宝', image: '/brands/gerber.png'},
+          ]" :key="index" class="brand-item">
+            <div class="brand-image">
+              <img :src="brand.image" :alt="brand.name" />
+            </div>
+            <p class="brand-name">{{ brand.name }}</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- 快速分类导航 - 使用真实分类图片 -->
+      <section class="categories-section">
+        <div class="section-header">
+          <h2 class="section-title">商品分类</h2>
+        </div>
+        
+        <div class="categories-grid">
           <router-link 
-            v-for="(category, index) in quickCategories" 
+            v-for="(category, index) in [
+              {label: '全部', value: '', image: '/categorys/milk.png', icon: 'el-icon-menu'},
+              {label: '奶粉', value: '1', image: '/categorys/milk.png', icon: 'el-icon-milk-tea'},
+              {label: '玩具', value: '2', image: '/categorys/toy.png', icon: 'el-icon-present'},
+              {label: '服装', value: '3', image: '/categorys/clothing.png', icon: 'el-icon-brush'},
+              {label: '尿片', value: '5', image: '/categorys/diaper.png', icon: 'el-icon-box'},
+              {label: '喂养', value: '7', image: '/categorys/feeding.png', icon: 'el-icon-food'},
+            ]"
             :key="index"
             :to="{ path: '/products', query: { category: category.value } }"
-            class="category-item"
+            class="category-card"
             :class="{ 'active': filterForm.category === category.value }"
           >
-            <div class="category-icon">
-              <i :class="category.icon"></i>
+            <div class="category-image">
+              <img :src="category.image" :alt="category.label" />
             </div>
-            <span>{{ category.label }}</span>
+            <span class="category-name">{{ category.label }}</span>
           </router-link>
-        </motion-div>
-      </div>
+        </div>
+      </section>
       
       <div class="product-content-wrapper">
-        <!-- 侧边筛选器 -->
+        <!-- 侧边筛选器 - 现代风格 -->
         <motion-div
           :initial="{ opacity: 0, x: -20 }"
           :animate="{ opacity: 1, x: 0 }"
@@ -66,7 +103,10 @@
           :class="{ 'filter-sidebar-open': showFilters }"
         >
           <div class="filter-header">
-            <h3>商品筛选</h3>
+            <h3>
+              <el-icon><Filter /></el-icon>
+              商品筛选
+            </h3>
             <el-button 
               class="close-filter-btn" 
               icon="el-icon-close" 
@@ -132,19 +172,71 @@
           <div class="mobile-filter-toggle" v-if="isMobile">
             <el-button 
               type="primary" 
-              icon="el-icon-filter" 
               @click="toggleFilters"
-            >筛选</el-button>
+            >
+              <el-icon><Filter /></el-icon>
+              筛选
+            </el-button>
           </div>
           
-          <!-- 商品排序和数量 -->
+          <!-- 活跃筛选标签 -->
+          <div v-if="hasActiveFilters" class="active-filters">
+            <span class="filter-label">已选条件:</span>
+            <div class="filter-tags">
+              <el-tag 
+                v-if="filterForm.category" 
+                closable 
+                @close="filterForm.category = ''"
+                class="filter-tag"
+              >
+                分类: {{ getCategoryNameById(filterForm.category) }}
+              </el-tag>
+              
+              <el-tag 
+                v-if="filterForm.priceRange" 
+                closable 
+                @close="filterForm.priceRange = ''"
+                class="filter-tag"
+              >
+                价格: {{ formatPriceRange(filterForm.priceRange) }}
+              </el-tag>
+              
+              <el-tag 
+                v-for="(brand, index) in filterForm.brands" 
+                :key="'brand-' + index"
+                closable 
+                @close="removeBrandFilter(brand)"
+                class="filter-tag"
+              >
+                品牌: {{ getBrandNameById(brand) }}
+              </el-tag>
+              
+              <el-tag 
+                v-for="(age, index) in filterForm.ageRange" 
+                :key="'age-' + index"
+                closable 
+                @close="removeAgeFilter(age)"
+                class="filter-tag"
+              >
+                年龄: {{ age }}
+              </el-tag>
+              
+              <el-button link size="small" @click="resetFilters" class="clear-all-btn">
+                清除全部
+              </el-button>
+            </div>
+          </div>
+          
+          <!-- 商品排序和数量 - 增强版UI -->
           <motion-div
             :initial="{ opacity: 0, y: 20 }"
             :animate="{ opacity: 1, y: 0 }"
             :transition="{ duration: 0.5, delay: 0.4 }"
             class="products-header"
           >
-            <div class="total-count">找到 <span>{{ totalProducts }}</span> 件宝宝好物</div>
+            <div class="total-count">
+              找到 <span>{{ totalProducts }}</span> 件宝宝好物
+            </div>
             
             <div class="controls-wrapper">
               <div class="sort-options">
@@ -207,73 +299,14 @@
               <div 
                 v-for="(product, index) in products" 
                 :key="product.id" 
-                class="product-card"
+                class="product-card-wrapper"
                 :style="{ animationDelay: `${index * 0.05}s` }"
               >
-                <div class="product-card-inner">
-                  <!-- 产品前面 -->
-                  <div class="product-front">
-                    <div class="product-image">
-                      <img :src="product.imageUrl" :alt="product.name">
-                      <div class="product-badges">
-                        <span v-if="product.isNew" class="badge new-badge">新品</span>
-                        <span v-if="product.discount" class="badge discount-badge">{{ product.discount }}</span>
-                        <span v-if="product.isFeatured" class="badge featured-badge">推荐</span>
-                      </div>
-                      <div class="quick-actions">
-                        <el-tooltip content="快速查看" placement="top">
-                          <el-button 
-                            circle 
-                            size="small"
-                            class="quick-view-btn"
-                            @click.stop="quickViewProduct(product)"
-                          >
-                            <i class="el-icon-view"></i>
-                          </el-button>
-                        </el-tooltip>
-                        <el-tooltip content="收藏" placement="top">
-                          <el-button 
-                            circle 
-                            size="small"
-                            class="favorite-btn"
-                            @click.stop="toggleFavorite(product)"
-                          >
-                            <i class="el-icon-star-off"></i>
-                          </el-button>
-                        </el-tooltip>
-                      </div>
-                    </div>
-                    
-                    <div class="product-info" @click="goToProduct(product.id)">
-                      <div class="product-category">{{ getCategoryName(product.category) }}</div>
-                      <h3 class="product-name">{{ product.name }}</h3>
-                      
-                      <div class="product-rating">
-                        <el-rate v-model="product.rating" disabled text-color="#ff9900" />
-                        <span class="rating-count">({{ Math.floor(Math.random() * 100) + 10 }})</span>
-                      </div>
-                      
-                      <div class="product-price">
-                        <span class="current-price">¥{{ product.price.toFixed(2) }}</span>
-                        <span v-if="product.originalPrice" class="original-price">¥{{ product.originalPrice.toFixed(2) }}</span>
-                      </div>
-                      
-                      <div class="product-meta">
-                        <span class="product-sale-info">已售 {{ product.salesCount }}</span>
-                      </div>
-                    </div>
-                    
-                    <div class="product-action">
-                      <el-button 
-                        type="primary" 
-                        class="add-to-cart-btn"
-                        @click.stop="addToCart(product.id)"
-                      >
-                        <i class="el-icon-shopping-cart"></i> 加入购物车
-                      </el-button>
-                    </div>
-                  </div>
-                </div>
+                <EnhancedProductCard 
+                  :product="product" 
+                  :initial-favorite-state="product.isFavorite ? product.isFavorite.value : false"
+                  :favorite-id="favoriteIdMap.get(product.id)"
+                />
               </div>
             </transition-group>
           </motion-div>
@@ -334,7 +367,7 @@
                       class="quick-view-btn"
                       @click.stop="quickViewProduct(product)"
                     >
-                      <i class="el-icon-view"></i>
+                      <el-icon><View /></el-icon>
                     </el-button>
                     <el-button 
                       circle 
@@ -342,13 +375,13 @@
                       class="favorite-btn"
                       @click.stop="toggleFavorite(product)"
                     >
-                      <i class="el-icon-star-off"></i>
+                      <el-icon><Star /></el-icon>
                     </el-button>
                     <el-button 
                       type="primary" 
                       @click.stop="addToCart(product.id)"
                     >
-                      <i class="el-icon-shopping-cart"></i> 加入购物车
+                      <el-icon><ShoppingCart /></el-icon> 加入购物车
                     </el-button>
                   </div>
                 </div>
@@ -365,7 +398,7 @@
             <el-button type="primary" @click="resetFilters">重置筛选条件</el-button>
           </div>
           
-          <!-- 分页 -->
+          <!-- 分页 - 增强样式 -->
           <div class="pagination-container" v-if="!loading && totalProducts > 0">
             <el-pagination
               v-model:current-page="currentPage"
@@ -375,13 +408,14 @@
               :total="totalProducts"
               @size-change="handleSizeChange"
               @current-change="handleCurrentChange"
+              background
             />
           </div>
         </div>
       </div>
     </div>
     
-    <!-- 快速预览弹窗 -->
+    <!-- 快速预览弹窗 - 保留原有功能，增强样式 -->
     <el-dialog
       v-model="quickViewVisible"
       width="800px"
@@ -421,7 +455,7 @@
           
           <div class="product-actions">
             <el-button type="primary" @click="addToCartFromQuickView">
-              <i class="el-icon-shopping-cart"></i> 加入购物车
+              <el-icon><ShoppingCart /></el-icon> 加入购物车
             </el-button>
             <el-button @click="goToProduct(selectedProduct.id)">
               查看详情
@@ -454,13 +488,14 @@ export default {
 import { ref, reactive, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Grid, List } from '@element-plus/icons-vue'
+import { Grid, List, Filter, ArrowRight, Star, ShoppingCart, View } from '@element-plus/icons-vue'
 
 import { useCartStore } from '@/stores/cart'
 // 导入产品API
 import { getProductList } from '@/api/product'
 import { getFavorites, addFavorite, removeFavorite } from '@/api/user'
-
+// 导入EnhancedProductCard组件
+import { EnhancedProductCard } from '@/components/product'
 const router = useRouter()
 const route = useRoute()
 const cartStore = useCartStore()
@@ -590,25 +625,49 @@ const loadProducts = async () => {
     }
     
     if (res.code === 200 && res.data) {
+      console.log('获取到商品列表数据:', res.data);
+      
       // 将API返回的数据映射为组件所需格式
-      products.value = res.data.records.map(product => ({
-        id: product.productId,
-        name: product.productName,
-        shortDescription: product.productDetail ? 
-          product.productDetail.substring(0, 100) + (product.productDetail.length > 100 ? '...' : '') : 
-          '暂无描述',
-        imageUrl: `/products/${product.productImg}`, // 使用 public 目录
-        price: product.priceNew,
-        originalPrice: product.priceOld,
-        discount: product.priceOld && product.priceNew ? 
-          `${Math.floor(product.priceNew / product.priceOld * 10)}折` : null,
-        salesCount: product.sales || 0,
-        rating: product.rating || 4.5,
-        category: mapCategoryId(product.categoryId),
-        isNew: product.isNew === 1,
-        isFeatured: product.isRecommend === 1,
-        isFavorite: ref(favoriteProductIds.has(product.productId)) // 添加响应式收藏状态
-      }))
+      products.value = res.data.records.map(product => {
+        // 调试输出每个商品的原始数据
+        console.log('处理商品数据:', product);
+        
+        // 检查图片路径
+        let imagePath = product.productImg || '';
+        console.log('图片原始路径:', imagePath);
+        
+        // 确保productId存在
+        const productId = product.productId;
+        
+        // 检查这个商品是否在收藏列表中
+        const isInFavorite = favoriteProductIds.has(productId);
+        console.log(`商品ID: ${productId}, 是否在收藏列表中: ${isInFavorite}`);
+        if (isInFavorite) {
+          console.log('该商品的favoriteId为:', favoriteIdMap.value.get(productId));
+        }
+        
+        return {
+          id: productId,
+          productId: productId, // 确保同时有productId属性
+          name: product.productName,
+          shortDescription: product.productDetail ? 
+            product.productDetail.substring(0, 100) + (product.productDetail.length > 100 ? '...' : '') : 
+            '暂无描述',
+          image: product.productImg, // 直接保存原始图片名或路径
+          productImg: product.productImg, // 添加productImg属性
+          imageUrl: `/products/${product.productImg}`, // 使用 public 目录
+          price: product.priceNew,
+          originalPrice: product.priceOld,
+          discount: product.priceOld && product.priceNew ? 
+            `${Math.floor(product.priceNew / product.priceOld * 10)}折` : null,
+          salesCount: product.sales || 0,
+          rating: product.rating || 4.5,
+          category: mapCategoryId(product.categoryId),
+          isNew: product.isNew === 1,
+          isFeatured: product.isRecommend === 1,
+          isFavorite: ref(isInFavorite) // 添加响应式收藏状态
+        };
+      });
       
       totalProducts.value = res.data.total || 0
     } else {
@@ -810,6 +869,81 @@ const quickViewProduct = (product) => {
   quickViewVisible.value = true
   quickViewQuantity.value = 1
 }
+
+// 计算属性
+const productRating = computed(() => props.product.rating || 0);
+
+// 计算是否有活跃的筛选条件
+const hasActiveFilters = computed(() => {
+  return filterForm.category !== '' || 
+         filterForm.priceRange !== '' || 
+         filterForm.brands.length > 0 || 
+         filterForm.ageRange.length > 0;
+});
+
+// 格式化价格区间显示
+const formatPriceRange = (range) => {
+  if (!range) return '';
+  
+  const [min, max] = range.split('-').map(Number);
+  if (!max && min) {
+    return `${min}元以上`;
+  } else if (min !== undefined && max !== undefined) {
+    return `${min}-${max}元`;
+  }
+  return range;
+};
+
+// 根据ID获取分类名称
+const getCategoryNameById = (categoryId) => {
+  if (!categoryId) return '全部';
+  
+  const categories = [
+    {label: '全部', value: ''},
+    {label: '奶粉', value: '1'},
+    {label: '玩具', value: '2'},
+    {label: '服装', value: '3'},
+    {label: '推车', value: '4'},
+    {label: '护理', value: '5'},
+    {label: '洗护', value: '6'},
+    {label: '喂养', value: '7'}
+  ];
+  
+  const category = categories.find(c => c.value === categoryId);
+  return category ? category.label : '未知分类';
+};
+
+// 根据ID获取品牌名称
+const getBrandNameById = (brandId) => {
+  if (!brandId) return '';
+  
+  const brands = {
+    '1': '惠氏',
+    '2': '美素佳儿',
+    '3': '帮宝适',
+    '4': '花王',
+    '5': '爱他美',
+    '6': '费雪',
+    '7': '飞利浦新安怡',
+    '8': '美德乐',
+    '9': '贝亲',
+    '10': '嘉宝'
+  };
+  
+  return brands[brandId] || '未知品牌';
+};
+
+// 移除品牌筛选
+const removeBrandFilter = (brand) => {
+  filterForm.brands = filterForm.brands.filter(b => b !== brand);
+  applyFilters();
+};
+
+// 移除年龄筛选
+const removeAgeFilter = (age) => {
+  filterForm.ageRange = filterForm.ageRange.filter(a => a !== age);
+  applyFilters();
+};
 
 onMounted(() => {
   checkMobile()
